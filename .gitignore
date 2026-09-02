@@ -1,0 +1,6 @@
+*.md
+dist
+build
+anodik
+.envrc
+.direnv
