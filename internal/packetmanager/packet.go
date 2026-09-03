@@ -43,7 +43,6 @@ const (
 	compiler PacketType = "compiler"
 	ninja    PacketType = "ninja"
 	openocd  PacketType = "openocd"
-	tools    PacketType = "tools"
 )
 
 func IsValidName(name PacketType) bool {
@@ -53,8 +52,7 @@ func IsValidName(name PacketType) bool {
 		cmake,
 		compiler,
 		ninja,
-		openocd,
-		tools:
+		openocd:
 		return true
 	}
 	return false

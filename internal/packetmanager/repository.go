@@ -36,9 +36,9 @@ var RequiredToolTable = []Tool{
 	{"openocd", openocd, toolchain.OpenOCD, Required, version{0, 0}, anyVersion, anyCheck},
 	{"riscv gcc", compiler, toolchain.GCC, Required, version{0, 0}, gccVersion, gccCheck},
 	{"riscv gdb", compiler, toolchain.GDB, Required, version{0, 0}, gdbVersion, anyCheck},
-	{"clangd", tools, toolchain.Clangd, Optional, version{0, 0}, anyVersion, anyCheck},
-	{"clang-format", tools, toolchain.ClangFormat, Optional, version{0, 0}, anyVersion, anyCheck},
-	{"clang-tidy", tools, toolchain.ClangTidy, Optional, version{0, 0}, anyVersion, anyCheck},
+	{"clangd", compiler, toolchain.Clangd, Optional, version{0, 0}, anyVersion, anyCheck},
+	{"clang-format", compiler, toolchain.ClangFormat, Optional, version{0, 0}, anyVersion, anyCheck},
+	{"clang-tidy", compiler, toolchain.ClangTidy, Optional, version{0, 0}, anyVersion, anyCheck},
 }
 
 type RequiredEnvSetter func(*env.Settings, string) (*env.Settings, error)
@@ -50,7 +50,6 @@ var RequiredEnvTable = map[PacketType]RequiredEnvSetter{
 	ninja:    ninjaRequiredEnv,
 	openocd:  openocdRequiredEnv,
 	compiler: compilerRequiredEnv,
-	tools:    toolsRequiredEnv,
 }
 
 var CleanEnvTable = map[PacketType]RequiredEnvRemover{
@@ -58,7 +57,6 @@ var CleanEnvTable = map[PacketType]RequiredEnvRemover{
 	ninja:    ninjaRequiredEnvRemove,
 	openocd:  openocdRequiredEnvRemove,
 	compiler: compilerRequiredEnvRemove,
-	tools:    toolsRequiredEnvRemove,
 }
 
 func cmakeRequiredEnv(s *env.Settings, installDir string) (*env.Settings, error) {
@@ -92,23 +90,16 @@ func openocdRequiredEnvRemove(s *env.Settings) *env.Settings {
 }
 
 func compilerRequiredEnv(s *env.Settings, installDir string) (*env.Settings, error) {
-	s.GCCToolchainBinDir = filepath.Join(installDir, "bin")
-	s.ClangToolchainBinDir = filepath.Join(installDir, "bin")
+	dir := filepath.Join(installDir, "bin")
+	s.GCCToolchainBinDir = dir
+	s.ClangToolchainBinDir = dir
+	s.ToolsBinDir = dir
 	return s, nil
 }
 
 func compilerRequiredEnvRemove(s *env.Settings) *env.Settings {
 	s.GCCToolchainBinDir = ""
 	s.ClangToolchainBinDir = ""
-	return s
-}
-
-func toolsRequiredEnv(s *env.Settings, installDir string) (*env.Settings, error) {
-	s.ToolsBinDir = filepath.Join(installDir, "bin")
-	return s, nil
-}
-
-func toolsRequiredEnvRemove(s *env.Settings) *env.Settings {
 	s.ToolsBinDir = ""
 	return s
 }
