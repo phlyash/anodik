@@ -58,21 +58,21 @@ func writeFile(destPath string, src io.Reader, mode os.FileMode) error {
 	return errors.Join(copyErr, closeErr)
 }
 
-func makeSymlink(target, linkPath string) error {
+func makeSymlink(linkText, linkPath, resolvedTarget string) error {
 	if err := mkParent(linkPath); err != nil {
 		return err
 	}
-	if err := os.Symlink(target, linkPath); err == nil {
+	if err := os.Symlink(linkText, linkPath); err == nil {
 		return nil
 	}
-	fi, err := os.Lstat(target)
+	fi, err := os.Lstat(resolvedTarget)
 	if err != nil {
 		return writeFile(linkPath, strings.NewReader(""), 0o644)
 	}
 	if !fi.Mode().IsRegular() {
 		return nil
 	}
-	f, err := os.Open(target)
+	f, err := os.Open(resolvedTarget)
 	if err != nil {
 		return err
 	}
@@ -158,11 +158,23 @@ func extractTarEntry(hdr *tar.Header, r io.Reader, destDir string) error {
 		return os.MkdirAll(destPath, 0o755)
 
 	case tar.TypeSymlink:
-		targetPath, err := safeJoin(destDir, hdr.Linkname)
+		// hdr.Linkname is the literal text that must end up inside the
+		// symlink. It is almost always relative to the directory that
+		// contains the link itself (destPath's parent), NOT to destDir.
+		// We must resolve it against that directory purely to validate
+		// that it doesn't escape destDir - but the value written into
+		// the symlink must remain the original (relative) Linkname.
+		var resolveBase string
+		if filepath.IsAbs(hdr.Linkname) {
+			resolveBase = destDir
+		} else {
+			resolveBase = filepath.Dir(destPath)
+		}
+		resolvedTarget, err := safeJoin(resolveBase, hdr.Linkname)
 		if err != nil {
 			return fmt.Errorf("symlink target unsafe: %w", err)
 		}
-		return makeSymlink(targetPath, destPath)
+		return makeSymlink(hdr.Linkname, destPath, resolvedTarget)
 
 	case tar.TypeLink:
 		targetPath, err := safeJoin(destDir, hdr.Linkname)

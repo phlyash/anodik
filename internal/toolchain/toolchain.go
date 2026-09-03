@@ -62,7 +62,7 @@ func GDB(s *env.Settings) string {
 }
 
 func Clang(s *env.Settings) string {
-	return binary(s.GCCToolchainBinDir, "", "clang")
+	return filepath.Join(s.ClangToolchainBinDir, BinName("clang"))
 }
 
 func OpenOCD(s *env.Settings) string {

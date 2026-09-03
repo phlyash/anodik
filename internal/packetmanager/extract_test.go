@@ -342,6 +342,53 @@ func TestExtractTarGz_ValidSymlink(t *testing.T) {
 	}
 }
 
+func TestExtractTarGz_RelativeSymlinkInSubdir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink creation commonly restricted on windows")
+	}
+
+	dir := t.TempDir()
+	archivePath := filepath.Join(dir, "compiler.tar.gz")
+	destDir := filepath.Join(dir, "out")
+
+	// Mirrors compiler-1.0.tar.gz layout: bin/clang-22 is a real file,
+	// bin/clang is a relative symlink to its sibling "clang-22".
+	writeTarGz(t, archivePath, []tarEntry{
+		{name: "bin/", typeflag: tar.TypeDir},
+		{name: "bin/clang-22", typeflag: tar.TypeReg, content: "binary data"},
+		{name: "bin/clang", typeflag: tar.TypeSymlink, linkname: "clang-22"},
+		{name: "bin/clang++", typeflag: tar.TypeSymlink, linkname: "clang"},
+	})
+
+	if err := Extract(archivePath, destDir, "tar.gz"); err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+
+	clangLink := filepath.Join(destDir, "bin", "clang")
+	target, err := os.Readlink(clangLink)
+	if err != nil {
+		t.Fatalf("readlink bin/clang: %v", err)
+	}
+	if target != "clang-22" {
+		t.Errorf("bin/clang -> %q, want %q (must stay relative within bin/)", target, "clang-22")
+	}
+
+	clangppLink := filepath.Join(destDir, "bin", "clang++")
+	target2, err := os.Readlink(clangppLink)
+	if err != nil {
+		t.Fatalf("readlink bin/clang++: %v", err)
+	}
+	if target2 != "clang" {
+		t.Errorf("bin/clang++ -> %q, want %q", target2, "clang")
+	}
+
+	// The symlink must actually resolve to the real file's content.
+	got := readFile(t, clangLink)
+	if got != "binary data" {
+		t.Errorf("bin/clang resolved content = %q, want %q", got, "binary data")
+	}
+}
+
 func TestExtractTarGz_HardLink(t *testing.T) {
 	dir := t.TempDir()
 	archivePath := filepath.Join(dir, "test.tar.gz")
@@ -445,7 +492,7 @@ func TestMakeSymlink_FallbackWhenTargetMissing(t *testing.T) {
 	target := filepath.Join(dir, "nonexistent.txt")
 	linkPath := filepath.Join(dir, "link.txt")
 
-	if err := makeSymlink(target, linkPath); err != nil {
+	if err := makeSymlink(target, linkPath, target); err != nil {
 		t.Fatalf("makeSymlink failed: %v", err)
 	}
 
