@@ -313,7 +313,9 @@ func parseEnvFile(path string) (map[string]string, error) {
 			}
 		}
 
-		values[key] = value
+		if value != "" {
+			values[key] = value
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
