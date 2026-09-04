@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func Install(packet Packet, target_path string) error {
+func Install(packet *Packet, target_path string) error {
 	url := packet.Url
 	tmpArchive, err := Download(url)
 	if err != nil {
@@ -98,7 +98,7 @@ func Uninstall(packet Packet, installDir string) error {
 	return env.Save(settings)
 }
 
-func CheckSHA(packet Packet, archivePath string) error {
+func CheckSHA(packet *Packet, archivePath string) error {
 	archive, err := os.Open(archivePath)
 	if err != nil {
 		return err

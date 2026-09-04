@@ -6,6 +6,7 @@ import (
 	"anodik/internal/process"
 	"anodik/internal/toolchain"
 	"fmt"
+	"runtime"
 )
 
 const Url = packetmanager.RepoUrl
@@ -104,8 +105,8 @@ func runInstallPacket(name string, s *env.Settings, installDir string) error {
 		return fmt.Errorf("query packets: %w", err)
 	}
 
-	packet, ok := findPacket(packets, name)
-	if !ok {
+	packet := findPacket(packets, name)
+	if packet == nil {
 		return fmt.Errorf("packet %q not found (run: anodik install --list)", name)
 	}
 
@@ -123,11 +124,33 @@ func runInstallPacket(name string, s *env.Settings, installDir string) error {
 	return nil
 }
 
-func findPacket(packets []packetmanager.Packet, name string) (packetmanager.Packet, bool) {
-	for _, p := range packets {
-		if p.Type == name {
-			return p, true
+func findPacket(packets []packetmanager.Packet, name string) *packetmanager.Packet {
+
+	var zipArchive *packetmanager.Packet = nil
+	var tarArchive *packetmanager.Packet = nil
+
+	for idx := 0; idx < len(packets); idx++ {
+		var p *packetmanager.Packet = &packets[idx]
+		if p.Type != name {
+			continue
+		}
+
+		/// there is must be a way to make this more elegant but i dont care right now,
+		/// i just need to make "zip" a preferable version on windows because of symlinks.
+		if runtime.GOOS != "windows" {
+			return p
+		}
+		if p.Archiv == "zip" {
+			zipArchive = p
+		}
+		if p.Archiv == "tar.gz" {
+			tarArchive = p
 		}
 	}
-	return packetmanager.Packet{}, false
+
+	if zipArchive == nil {
+		return tarArchive
+	}
+
+	return zipArchive
 }
