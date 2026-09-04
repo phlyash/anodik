@@ -178,16 +178,20 @@ func copySDKTemplate(sdkRoot, targetDir, name string) {
 	_ = os.WriteFile(filepath.Join(targetDir, name), data, 0644)
 }
 
+func anodikPath() string {
+	return filepath.ToSlash(toolchain.Anodik())
+}
+
 func generateZedDirectory(_ *env.Settings, targetDir string) error {
 	if err := os.MkdirAll(filepath.Join(targetDir, ".zed"), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(toolchain.Anodik())), 0644)
+	return os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(anodikPath())), 0644)
 }
 
 func generateVscodeDirecotry(_ *env.Settings, targetDir string) error {
 	if err := os.MkdirAll(filepath.Join(targetDir, ".vscode"), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(targetDir, ".vscode", "tasks.json"), []byte(integration.VscodeTasks(toolchain.Anodik())), 0644)
+	return os.WriteFile(filepath.Join(targetDir, ".vscode", "tasks.json"), []byte(integration.VscodeTasks(anodikPath())), 0644)
 }
