@@ -84,6 +84,21 @@ const vscodeTasks = `
             "isBackground": true
         },
         {
+            "label": "Start openocd in background",
+            "type": "shell",
+            "command": "%[1]s ocd --bg",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            },
+            "runOptions": {
+                "instanceLimit": 1
+            },
+        },
+        {
             "label": "Stop background openocd",
             "type": "shell",
             "command": "%[1]s ocd --stop",
@@ -118,6 +133,36 @@ const vscodeTasks = `
 }
 `
 
+const vscodeDebug = `
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug with GDB (OpenOCD remote)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/%[1]s",
+            "miDebuggerPath": "%[2]s",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "setupCommands": [
+                { "text": "file ${workspaceFolder}/build/%[1]s" },
+                { "text": "tar rem :3333" },
+                { "text": "monitor reset halt" },
+                { "text": "load" }
+            ],
+            "stopAtEntry": true,
+            "preLaunchTask": "Start openocd in background",
+            "postDebugTask": "Stop background openocd"
+        }
+    ]
+}
+`
+
 func VscodeTasks(anodikPath string) string {
 	return fmt.Sprintf(vscodeTasks, anodikPath)
+}
+
+func VscodeLaunch(projectName string, gdbPath string) string {
+	return fmt.Sprintf(vscodeDebug, projectName, gdbPath)
 }

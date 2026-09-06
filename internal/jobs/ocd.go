@@ -5,6 +5,7 @@ import (
 	"anodik/internal/ocd"
 	"anodik/internal/process"
 	"fmt"
+	"os"
 )
 
 const ocdProcessName = "openocd"
@@ -76,13 +77,14 @@ func startOCDBackground(s *env.Settings, manager *process.Manager, cfg ocd.Confi
 	fmt.Println("Starting OpenOCD in background...")
 	ocd.PrintInfo(cfg, &ports)
 
-	pid, alive, err := manager.RunDetachedLogged(args[0], args[1:], ocd.LogPath(s.SDKRoot), ports.GDB)
+	err := os.MkdirAll(ocd.RuntimeDir(s.WorkingDir), 0755)
+	pid, alive, err := manager.RunDetachedLogged(args[0], args[1:], ocd.LogPath(s.WorkingDir), ports.GDB)
 	if err != nil {
 		return err
 	}
 
 	if !alive {
-		fmt.Println("ERROR: OpenOCD failed to start. See log:", ocd.LogPath(s.SDKRoot))
+		fmt.Println("ERROR: OpenOCD failed to start. See log:", ocd.LogPath(s.WorkingDir))
 		return fmt.Errorf("openocd did not stay running")
 	}
 

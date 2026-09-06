@@ -54,29 +54,29 @@ func (j *RunJob) Run(s *env.Settings, manager *process.Manager) error {
 	ocd.PrintInfo(cfg, &ports)
 
 	ocdArgs := ocd.Command(s, s.SDKRoot, cfg, ports, nil)
-	pid, alive, err := manager.RunDetachedLogged(ocdArgs[0], ocdArgs[1:], ocd.LogPath(s.SDKRoot), ports.GDB)
+	pid, alive, err := manager.RunDetachedLogged(ocdArgs[0], ocdArgs[1:], ocd.LogPath(s.WorkingDir), ports.GDB)
 	if err != nil {
 		return err
 	}
 	if !alive {
-		fmt.Println("error: OpenOCD failed to start. See log:", ocd.LogPath(s.SDKRoot))
+		fmt.Println("error: OpenOCD failed to start. See log:", ocd.LogPath(s.WorkingDir))
 		return fmt.Errorf("openocd did not stay running")
 	}
 	fmt.Printf("OpenOCD started (PID: %d)\n", pid)
 
 	targetName, err := ocd.ResolveTargetName("127.0.0.1:"+ports.TCL, cfg.SoC, 2*time.Second)
 	if err != nil {
-		fmt.Println("error: could not find OpenOCD target for this SoC. See log:", ocd.LogPath(s.SDKRoot))
+		fmt.Println("error: could not find OpenOCD target for this SoC. See log:", ocd.LogPath(s.WorkingDir))
 		return err
 	}
 
 	fmt.Printf("[TARGET] %s\n", targetName)
 
 	if examined, detail, err := ocd.CheckTargetExamined("127.0.0.1:"+ports.TCL, targetName, 2*time.Second); err != nil {
-		fmt.Println("error: OpenOCD is not responding on its TCL port. See log:", ocd.LogPath(s.SDKRoot))
+		fmt.Println("error: OpenOCD is not responding on its TCL port. See log:", ocd.LogPath(s.WorkingDir))
 		return fmt.Errorf("openocd tcl check failed: %w", err)
 	} else if !examined {
-		fmt.Println("error: OpenOCD could not find the target chip (check programmer/wiring). See log:", ocd.LogPath(s.SDKRoot))
+		fmt.Println("error: OpenOCD could not find the target chip (check programmer/wiring). See log:", ocd.LogPath(s.WorkingDir))
 		return fmt.Errorf("openocd target not examined: %s", detail)
 	}
 

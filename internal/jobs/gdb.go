@@ -26,7 +26,7 @@ func (j *GDBJob) Run(s *env.Settings, manager *process.Manager) error {
 		// Prefer whatever port a running background openocd session
 		// picked, so `anodik ocd --background` followed by `anodik gdb`
 		// just works without repeating --gdb-port.
-		cliGDBPort = ocd.SessionGDBPort(s.SDKRoot)
+		cliGDBPort = ocd.SessionGDBPort(s.WorkingDir)
 	}
 
 	cfg, err := ocd.Resolve(s, j.Example, j.SoC, j.Interface, cliGDBPort)

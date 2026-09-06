@@ -127,7 +127,7 @@ func (j *NewJob) Run(s *env.Settings, _ *process.Manager) error {
 		zedErr = generateZedDirectory(s, targetDir)
 	}
 	if j.VScode {
-		vscodeErr = generateVscodeDirecotry(s, targetDir)
+		vscodeErr = generateVscodeDirecotry(s, targetDir, name)
 	}
 	return errors.Join(zedErr, vscodeErr)
 }
@@ -189,9 +189,14 @@ func generateZedDirectory(_ *env.Settings, targetDir string) error {
 	return os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(anodikPath())), 0644)
 }
 
-func generateVscodeDirecotry(_ *env.Settings, targetDir string) error {
-	if err := os.MkdirAll(filepath.Join(targetDir, ".vscode"), 0755); err != nil {
+func generateVscodeDirecotry(s *env.Settings, targetDir string, projectName string) error {
+	dir := filepath.Join(targetDir, ".vscode")
+	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(targetDir, ".vscode", "tasks.json"), []byte(integration.VscodeTasks(anodikPath())), 0644)
+	taskErr := os.WriteFile(filepath.Join(dir, "tasks.json"), []byte(integration.VscodeTasks(anodikPath())), 0644)
+	var launchErr error = nil
+	/// todo: not stable yet
+	// launchErr := os.WriteFile(filepath.Join(dir, "launch.json"), []byte(integration.VscodeLaunch(projectName, filepath.ToSlash(toolchain.GDB(s)))), 0644)
+	return errors.Join(taskErr, launchErr)
 }
