@@ -13,6 +13,7 @@ type ListJob struct {
 	SDKRootRequirement
 	Interfaces bool
 	SoCs       bool
+	Boards     bool
 }
 
 func (j *ListJob) Prepare(*env.Settings, *process.Manager) error {
@@ -25,6 +26,8 @@ func (j *ListJob) Run(s *env.Settings, _ *process.Manager) error {
 		return listCfgStems(ocd.InterfaceCfgDir(s.SDKRoot))
 	case j.SoCs:
 		return listCfgStems(ocd.TargetCfgDir(s.SDKRoot))
+	case j.Boards:
+		return listBoards(s)
 	default:
 		return listExamples(s)
 	}
@@ -40,6 +43,7 @@ func (j *ListJob) Describe() HelpInfo {
 		Flags: []FlagHelp{
 			{Name: "interfaces", Desc: "list OpenOCD interface configs instead of examples"},
 			{Name: "socs", Desc: "list OpenOCD target/SoC configs instead of examples"},
+			{Name: "boards", Desc: "list available BSP configs with standard names"},
 		},
 	}
 }
@@ -73,6 +77,18 @@ func listExamples(s *env.Settings) error {
 		for _, name := range sdkExamples {
 			fmt.Printf("  %s\n", name)
 		}
+	}
+
+	return nil
+}
+
+func listBoards(s *env.Settings) error {
+	boards, err := discover.DiscoverBoards(s)
+	if err != nil {
+		return err
+	}
+	for _, board := range boards {
+		fmt.Println(board)
 	}
 
 	return nil

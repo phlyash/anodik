@@ -476,6 +476,7 @@ func parseList(args []string) (jobs.Job, error) {
 
 	fs.BoolVar(&job.Interfaces, "interfaces", false, "")
 	fs.BoolVar(&job.SoCs, "socs", false, "")
+	fs.BoolVar(&job.Boards, "boards", false, "")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
