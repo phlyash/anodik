@@ -62,6 +62,36 @@ const zedTasks = `
 ]
 `
 
+const zedSettings = `
+{
+    "lsp": {
+        "clangd": {
+            "binary": { "path": "%[1]s" }
+        }
+    },
+    "languages": {
+        "C++": {
+            "formatter": {
+                "external": {
+                    "command": "%[2]s",
+                }
+            }
+        },
+        "C": {
+            "formatter": {
+                "external": {
+                    "command": "%[2]s",
+                }
+            }
+        }
+    }
+}
+`
+
 func ZedTasks(anodikPath string) string {
 	return fmt.Sprintf(zedTasks, anodikPath)
+}
+
+func ZedSettings(clangd string, clangFormat string) string {
+	return fmt.Sprintf(zedSettings, clangd, clangFormat)
 }

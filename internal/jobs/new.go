@@ -63,11 +63,9 @@ CMakePresets.json
 `
 
 const CMAKE_PRESETS_TEMPLATE = `{
-  "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 23, "patch": 0 },
-  "include": [
-    "%s"
-  ]
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+    "include": ["%s"]
 }
 `
 
@@ -182,11 +180,13 @@ func anodikPath() string {
 	return filepath.ToSlash(toolchain.Anodik())
 }
 
-func generateZedDirectory(_ *env.Settings, targetDir string) error {
+func generateZedDirectory(s *env.Settings, targetDir string) error {
 	if err := os.MkdirAll(filepath.Join(targetDir, ".zed"), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(anodikPath())), 0644)
+	tasksErr := os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(anodikPath())), 0644)
+	settingsErr := os.WriteFile(filepath.Join(targetDir, ".zed", "settings.json"), []byte(integration.ZedSettings(filepath.ToSlash(toolchain.Clangd(s)), filepath.ToSlash(toolchain.ClangFormat(s)))), 0644)
+	return errors.Join(tasksErr, settingsErr)
 }
 
 func generateVscodeDirecotry(s *env.Settings, targetDir string, projectName string) error {
@@ -196,7 +196,9 @@ func generateVscodeDirecotry(s *env.Settings, targetDir string, projectName stri
 	}
 	taskErr := os.WriteFile(filepath.Join(dir, "tasks.json"), []byte(integration.VscodeTasks(anodikPath())), 0644)
 	var launchErr error = nil
+	_ = projectName
 	/// todo: not stable yet
 	// launchErr := os.WriteFile(filepath.Join(dir, "launch.json"), []byte(integration.VscodeLaunch(projectName, filepath.ToSlash(toolchain.GDB(s)))), 0644)
-	return errors.Join(taskErr, launchErr)
+	settingsErr := os.WriteFile(filepath.Join(dir, "settings.json"), []byte(integration.VscodeSettings(filepath.ToSlash(toolchain.Clangd(s)), filepath.ToSlash(toolchain.ClangFormat(s)))), 0644)
+	return errors.Join(taskErr, launchErr, settingsErr)
 }

@@ -146,16 +146,21 @@ const vscodeDebug = `
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
             "setupCommands": [
-                { "text": "file ${workspaceFolder}/build/%[1]s" },
+                { "text": "file $%[3]s/build/%[1]s" },
                 { "text": "tar rem :3333" },
                 { "text": "monitor reset halt" },
                 { "text": "load" }
             ],
             "stopAtEntry": true,
-            "preLaunchTask": "Start openocd in background",
-            "postDebugTask": "Stop background openocd"
         }
     ]
+}
+`
+
+const vscodeSettings = `
+{
+    "clangd.path": "%s",
+    "clang-format.executable": "%s",
 }
 `
 
@@ -163,6 +168,10 @@ func VscodeTasks(anodikPath string) string {
 	return fmt.Sprintf(vscodeTasks, anodikPath)
 }
 
-func VscodeLaunch(projectName string, gdbPath string) string {
-	return fmt.Sprintf(vscodeDebug, projectName, gdbPath)
+func VscodeLaunch(projectName string, gdbPath string, projectDir string) string {
+	return fmt.Sprintf(vscodeDebug, projectName, gdbPath, projectDir)
+}
+
+func VscodeSettings(clangd string, clangFormat string) string {
+	return fmt.Sprintf(vscodeSettings, clangd, clangFormat)
 }

@@ -66,28 +66,30 @@ func Clang(s *env.Settings) string {
 }
 
 func OpenOCD(s *env.Settings) string {
-	return notEmptyOrElse(s.OpenOCD, "openocd")
+	return notEmptyOrElse(s.OpenOCD, BinName("openocd"))
 }
 
 func CMake(s *env.Settings) string {
-	return notEmptyOrElse(s.CMake, "cmake")
+	return notEmptyOrElse(s.CMake, BinName("cmake"))
 }
 
 func Ninja(s *env.Settings) string {
-	return notEmptyOrElse(s.Ninja, "ninja")
+	return notEmptyOrElse(s.Ninja, BinName("ninja"))
 }
 
 func Clangd(s *env.Settings) string {
-
-	return notEmptyOrElse(filepath.Join(s.ToolsBinDir, "clangd"), "clangd")
+	clangd := BinName("clangd")
+	return notEmptyOrElse(filepath.Join(s.ToolsBinDir, clangd), clangd)
 }
 
 func ClangFormat(s *env.Settings) string {
-	return notEmptyOrElse(filepath.Join(s.ToolsBinDir, "clang-format"), "clang-format")
+	clangdFormat := BinName("clang-format")
+	return notEmptyOrElse(filepath.Join(s.ToolsBinDir, clangdFormat), clangdFormat)
 }
 
 func ClangTidy(s *env.Settings) string {
-	return notEmptyOrElse(filepath.Join(s.ToolsBinDir, "clang-tidy"), "clang-tidy")
+	clangTidy := BinName("clang-tidy")
+	return notEmptyOrElse(filepath.Join(s.ToolsBinDir, clangTidy), clangTidy)
 }
 
 func Anodik() string {
