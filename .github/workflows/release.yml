@@ -1,0 +1,186 @@
+name: Build and release Anodik
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Git tag used for the published GitHub Release
+        required: true
+        type: string
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install archive tools
+        run: sudo apt-get update && sudo apt-get install -y zip
+
+      - name: Test Go packages
+        run: CGO_ENABLED=0 go test ./...
+
+      - name: Test release scripts
+        run: |
+          bash build/test-package-release.sh
+          bash build/test-release-files.sh
+          python3 build/test-beget-release.py
+          bash build/test-deploy-beget.sh
+          python3 build/test-release-workflow.py
+
+      - name: Package release
+        run: bash build/package-release.sh dist/release
+
+      - name: Verify release archives
+        run: bash build/verify-release-files.sh dist/release
+
+      - name: Smoke test Linux binary
+        run: |
+          mkdir -p dist/smoke
+          tar -xzf dist/release/anodik-linux-x86_64.tar.gz -C dist/smoke
+          dist/smoke/bin/anodik help
+
+      - name: Upload Linux tar.gz artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: anodik-linux-x86_64.tar.gz
+          path: dist/release/anodik-linux-x86_64.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload Linux ZIP artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: anodik-linux-x86_64.zip
+          path: dist/release/anodik-linux-x86_64.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload Darwin tar.gz artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: anodik-darwin-aarch64.tar.gz
+          path: dist/release/anodik-darwin-aarch64.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload Darwin ZIP artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: anodik-darwin-aarch64.zip
+          path: dist/release/anodik-darwin-aarch64.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload Windows tar.gz artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: anodik-windows-x86_64.tar.gz
+          path: dist/release/anodik-windows-x86_64.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload Windows ZIP artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: anodik-windows-x86_64.zip
+          path: dist/release/anodik-windows-x86_64.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: Publish GitHub Release
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: anodik-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify release assets
+        run: bash build/verify-release-files.sh release-assets
+
+      - name: Validate release metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: >-
+          python3 build/prepare-beget-release.py
+          --type anodik
+          --tag "$RELEASE_TAG"
+          --repository "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          --input release-assets
+          --output release-check
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          gh release create "$RELEASE_TAG" release-assets/* \
+            --target "$GITHUB_SHA" \
+            --title "Anodik $RELEASE_TAG" \
+            --generate-notes \
+            --latest
+
+  deploy-beget:
+    name: Publish release to Aspect
+    if: github.event_name == 'workflow_dispatch'
+    needs: release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: anodik-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify release assets
+        run: bash build/verify-release-files.sh release-assets
+
+      - name: Prepare Aspect bundle
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: >-
+          python3 build/prepare-beget-release.py
+          --type anodik
+          --tag "$RELEASE_TAG"
+          --repository "$GITHUB_REPOSITORY"
+          --run-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          --input release-assets
+          --output aspect-upload
+
+      - name: Upload and publish on Aspect
+        env:
+          BEGET_HOST: ${{ secrets.BEGET_HOST }}
+          BEGET_PORT: ${{ secrets.BEGET_PORT }}
+          BEGET_USER: ${{ secrets.BEGET_USER }}
+          BEGET_SSH_PRIVATE_KEY: ${{ secrets.BEGET_SSH_PRIVATE_KEY }}
+          BEGET_KNOWN_HOSTS: ${{ secrets.BEGET_KNOWN_HOSTS }}
+        run: bash build/deploy-beget-release.sh aspect-upload
