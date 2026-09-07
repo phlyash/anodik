@@ -60,7 +60,7 @@ var CleanEnvTable = map[PacketType]RequiredEnvRemover{
 }
 
 func cmakeRequiredEnv(s *env.Settings, installDir string) (*env.Settings, error) {
-	s.CMake = filepath.Join(installDir, toolchain.BinName("cmake"))
+	s.CMake = filepath.Join(installDir, "bin", toolchain.BinName("cmake"))
 	return s, nil
 }
 
@@ -70,7 +70,7 @@ func cmakeRequiredEnvRemove(s *env.Settings) *env.Settings {
 }
 
 func ninjaRequiredEnv(s *env.Settings, installDir string) (*env.Settings, error) {
-	s.Ninja = filepath.Join(installDir, toolchain.BinName("ninja"))
+	s.Ninja = filepath.Join(installDir, "bin", toolchain.BinName("ninja"))
 	return s, nil
 }
 
