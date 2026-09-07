@@ -69,3 +69,16 @@ func TestResolvePositionalExampleNone(t *testing.T) {
 		t.Errorf("Example = %q, want empty", options.Example)
 	}
 }
+
+func TestParseBuildOptionsReleaseFlagNeedsNoValue(t *testing.T) {
+	fs := flag.NewFlagSet("build", flag.ContinueOnError)
+	options := &jobs.BuildOptions{}
+	parseBuildOptions(fs, options)
+
+	if err := fs.Parse([]string{"--release"}); err != nil {
+		t.Fatalf("Parse(--release): %v", err)
+	}
+	if options.BuildType != jobs.RELEASE {
+		t.Errorf("BuildType = %q, want %q", options.BuildType, jobs.RELEASE)
+	}
+}

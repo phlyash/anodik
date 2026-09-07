@@ -169,10 +169,10 @@ func parseSoCOptions(fs *flag.FlagSet, options *jobs.SoCOptions) {
 
 func parseBuildOptions(fs *flag.FlagSet, options *jobs.BuildOptions) {
 	fs.Var(buildTypeValue{value: &options.BuildType}, "build-type", "")
-	fs.BoolFunc("release", "", func(string) error {
+	fs.Var(boolFuncValue(func(string) error {
 		options.BuildType = jobs.RELEASE
 		return nil
-	})
+	}), "release", "")
 	fs.IntVar(&options.Jobs, "jobs", 0, "")
 	fs.IntVar(&options.Jobs, "j", 0, "")
 }
@@ -207,6 +207,15 @@ func parsePllOptions(fs *flag.FlagSet, options *jobs.PllOptions) {
 type buildTypeValue struct {
 	value *jobs.BuildType
 }
+
+// boolFuncValue provides flag.BoolFunc semantics while preserving Go 1.20 support.
+type boolFuncValue func(string) error
+
+func (f boolFuncValue) Set(value string) error { return f(value) }
+
+func (boolFuncValue) String() string { return "" }
+
+func (boolFuncValue) IsBoolFlag() bool { return true }
 
 func (v buildTypeValue) String() string {
 	if v.value == nil {
