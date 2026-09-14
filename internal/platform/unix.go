@@ -110,6 +110,13 @@ func RegisterSdk(target string) error {
 		return fmt.Errorf("cannot find user home directory, %w", err)
 	}
 
+	dir := filepath.Join(home, CMAKE_PACKAGE_DIR_PATH)
+	err = os.MkdirAll(dir, 0755)
+
+	if err != nil {
+		return fmt.Errorf("cannot create directory %s: %w", CMAKE_PACKAGE_DIR_PATH, err)
+	}
+
 	path := filepath.Join(home, CMAKE_PACKAGE_PATH)
 
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
