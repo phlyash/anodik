@@ -110,9 +110,7 @@ func defaultLimits() limits {
 	return limits{
 		aRange: func() []int { return intRange(0, 8) },
 		bRange: func() []int { return intRange(0, 64) },
-		// 1..63 inclusive: kept within LL_ASSERT(ref_div in [1,64]) in
-		// ll_pll_configure(), same comment as calc.py's r_range().
-		rRange: func() []int { return intRange(1, 64) },
+		rRange: func() []int { return intRange(0, 64) },
 		pRange: func() []int { return []int{1, 2, 4} },
 
 		isNInRange: func(doFrac bool, n float64) bool {
@@ -122,7 +120,7 @@ func defaultLimits() limits {
 			return n >= 1 && n <= 160
 		},
 		isFRefInRange: func(fRef float64) bool { return fRef >= 10e3 && fRef <= 100e3 },
-		isFVCOInRange: func(fVCO float64) bool { return fVCO >= 600e3 && fVCO <= 1200e3 },
+		isFVCOInRange: func(fVCO float64) bool { return fVCO >= 600e3 && fVCO <= 1000e3 },
 		isFOutInRange: func(fOut float64) bool { return fOut >= 200 && fOut <= 204e3 },
 		isFPFDInRange: func(c *Config, fRef float64) bool {
 			fpfd := c.FPFD(fRef)
@@ -151,7 +149,7 @@ func chipLimits(chip chipKind) limits {
 		l.isFOutInRange = func(fOut float64) bool { return fOut >= 390 && fOut <= 60e3 }
 		l.isFRefInRange = func(fRef float64) bool { return fRef >= 10e3 && fRef <= 30e3 }
 		l.isFVCOInRange = func(fVCO float64) bool { return fVCO >= 200e3 && fVCO <= 1600e3 }
-		l.rRange = func() []int { return intRange(1, 65) }
+		l.rRange = func() []int { return intRange(1, 64) }
 		l.pRange = func() []int { return []int{1} }
 	}
 
