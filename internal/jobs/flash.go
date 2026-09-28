@@ -33,7 +33,14 @@ func (j *FlashJob) Run(s *env.Settings, manager *process.Manager) error {
 		return err
 	}
 
-	ports := ocd.AllocatePorts(cfg.GDBPort)
+	if err := ocd.StopInterface(manager, cfg.Interface); err != nil {
+		return err
+	}
+
+	ports, err := ocd.ResolvePorts(cfg.GDBPort, cfg.GDBPortExplicit)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("Flashing %s...\n", cfg.ELFPath)
 	ocd.PrintInfo(cfg, &ports)

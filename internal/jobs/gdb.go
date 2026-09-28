@@ -21,17 +21,15 @@ func (j *GDBJob) Prepare(*env.Settings, *process.Manager) error {
 }
 
 func (j *GDBJob) Run(s *env.Settings, manager *process.Manager) error {
-	cliGDBPort := j.GDBPort
-	if cliGDBPort == "" {
-		// Prefer whatever port a running background openocd session
-		// picked, so `anodik ocd --background` followed by `anodik gdb`
-		// just works without repeating --gdb-port.
-		cliGDBPort = ocd.SessionGDBPort(s.WorkingDir)
-	}
-
-	cfg, err := ocd.Resolve(s, j.Example, j.SoC, j.Interface, cliGDBPort)
+	cfg, err := ocd.Resolve(s, j.Example, j.SoC, j.Interface, j.GDBPort)
 	if err != nil {
 		return err
+	}
+
+	if j.GDBPort == "" {
+		if _, gdbPort, ok := manager.Session(ocd.SessionName(cfg.Interface)); ok && gdbPort != "" {
+			cfg.GDBPort = gdbPort
+		}
 	}
 	if err := checkELF(cfg, j.Example); err != nil {
 		return err

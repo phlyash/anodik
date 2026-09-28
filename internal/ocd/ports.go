@@ -1,6 +1,7 @@
 package ocd
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 )
@@ -11,30 +12,48 @@ const (
 	portScanSpan      = 64
 )
 
-// Ports is the resolved gdb/telnet/tcl port triple OpenOCD will listen on.
 type Ports struct {
 	GDB    string
 	Telnet string
 	TCL    string
 }
 
-func AllocatePorts(gdbPort string) Ports {
-	gdbBase, err := strconv.Atoi(gdbPort)
-	if err != nil {
-		gdbBase = 0
+func ResolvePorts(gdbPort string, explicit bool) (Ports, error) {
+	base, err := strconv.Atoi(gdbPort)
+	if err != nil || base < 1 || base > 65535 {
+		return Ports{}, fmt.Errorf("invalid gdb port %q", gdbPort)
 	}
 
-	bases := []int{gdbBase, DefaultTelnetPort, DefaultTCLPort}
-	offset := findFreeOffset(bases, portScanSpan)
+	if explicit {
+		if !portFree(base) {
+			return Ports{}, fmt.Errorf("gdb port %d is busy: stop whatever is using it, or ask for a different port", base)
+		}
+
+		offset, ok := findFreeOffset([]int{DefaultTelnetPort, DefaultTCLPort}, portScanSpan)
+		if !ok {
+			return Ports{}, fmt.Errorf("no free telnet/tcl port pair near %d/%d", DefaultTelnetPort, DefaultTCLPort)
+		}
+
+		return Ports{
+			GDB:    strconv.Itoa(base),
+			Telnet: strconv.Itoa(DefaultTelnetPort + offset),
+			TCL:    strconv.Itoa(DefaultTCLPort + offset),
+		}, nil
+	}
+
+	offset, ok := findFreeOffset([]int{base, DefaultTelnetPort, DefaultTCLPort}, portScanSpan)
+	if !ok {
+		return Ports{}, fmt.Errorf("no free gdb/telnet/tcl port triple near %d/%d/%d", base, DefaultTelnetPort, DefaultTCLPort)
+	}
 
 	return Ports{
-		GDB:    strconv.Itoa(gdbBase + offset),
+		GDB:    strconv.Itoa(base + offset),
 		Telnet: strconv.Itoa(DefaultTelnetPort + offset),
 		TCL:    strconv.Itoa(DefaultTCLPort + offset),
-	}
+	}, nil
 }
 
-func findFreeOffset(bases []int, span int) int {
+func findFreeOffset(bases []int, span int) (int, bool) {
 	for offset := 0; offset < span; offset++ {
 		allFree := true
 		for _, base := range bases {
@@ -44,13 +63,17 @@ func findFreeOffset(bases []int, span int) int {
 			}
 		}
 		if allFree {
-			return offset
+			return offset, true
 		}
 	}
-	return 0
+	return 0, false
 }
 
 func portFree(port int) bool {
+	if port < 1 || port > 65535 {
+		return false
+	}
+
 	listener, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(port))
 	if err != nil {
 		return false

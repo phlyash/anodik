@@ -17,14 +17,15 @@ const (
 // Priority for every field is CLI flag > debug.mk (the example's last
 // build) > local.env/user env > built-in default.
 type Config struct {
-	SoC          string
-	Interface    string
-	GDBPort      string
-	TargetCfg    string
-	InterfaceCfg string
-	ExtraArgs    string
-	ELFPath      string
-	HasELFPath   bool
+	SoC             string
+	Interface       string
+	GDBPort         string
+	GDBPortExplicit bool
+	TargetCfg       string
+	InterfaceCfg    string
+	ExtraArgs       string
+	ELFPath         string
+	HasELFPath      bool
 }
 
 func ocdDir(sdkRoot string) string {
@@ -64,7 +65,8 @@ func Resolve(s *env.Settings, exampleName, cliSoC, cliInterface, cliGDBPort stri
 
 	soc := pick(cliSoC, mkValue(func(c *env.BuildConfig) string { return c.SoC }), s.SoC, DefaultSoC)
 	iface := pick(cliInterface, mkValue(func(c *env.BuildConfig) string { return c.Interface }), s.Interface, DefaultInterface)
-	gdbPort := pick(cliGDBPort, mkValue(func(c *env.BuildConfig) string { return c.GDBPort }), s.GDBPort, DefaultGDBPort)
+	requestedGDBPort := pick(cliGDBPort, mkValue(func(c *env.BuildConfig) string { return c.GDBPort }), s.GDBPort)
+	gdbPort := pick(requestedGDBPort, DefaultGDBPort)
 
 	targetCfg := pick("", mkValue(func(c *env.BuildConfig) string { return c.OCDTargetCfg }), s.OCDTargetCfg,
 		filepath.Join(TargetCfgDir(s.SDKRoot), soc+".cfg"))
@@ -73,12 +75,13 @@ func Resolve(s *env.Settings, exampleName, cliSoC, cliInterface, cliGDBPort stri
 	extraArgs := pick("", mkValue(func(c *env.BuildConfig) string { return c.OCDExtraArgs }), s.OCDExtraArgs, "")
 
 	cfg := Config{
-		SoC:          soc,
-		Interface:    iface,
-		GDBPort:      gdbPort,
-		TargetCfg:    targetCfg,
-		InterfaceCfg: interfaceCfg,
-		ExtraArgs:    extraArgs,
+		SoC:             soc,
+		Interface:       iface,
+		GDBPort:         gdbPort,
+		GDBPortExplicit: requestedGDBPort != "",
+		TargetCfg:       targetCfg,
+		InterfaceCfg:    interfaceCfg,
+		ExtraArgs:       extraArgs,
 	}
 
 	if exampleName != "" {

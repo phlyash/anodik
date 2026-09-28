@@ -18,7 +18,7 @@ func EnsureConfigured(s *env.Settings, manager *process.Manager, srcDir, buildDi
 		return nil
 	}
 
-	if err := manager.Run(args[0], args[1:], false); err != nil {
+	if err := manager.Run(args[0], args[1:]); err != nil {
 		return fmt.Errorf("configure: %w", err)
 	}
 
@@ -38,7 +38,7 @@ func Build(s *env.Settings, manager *process.Manager, srcDir, buildDir, projectD
 	}
 
 	buildArgs := []string{"--build", buildDir, "-j" + strconv.Itoa(jobCount)}
-	if err := manager.Run(toolchain.CMake(s), buildArgs, false); err != nil {
+	if err := manager.Run(toolchain.CMake(s), buildArgs); err != nil {
 		return fmt.Errorf("build: %w", err)
 	}
 

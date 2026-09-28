@@ -7,7 +7,11 @@ func PrintInfo(cfg Config, ports *Ports) {
 	fmt.Printf("  Interface : %s\n", cfg.Interface)
 	fmt.Printf("  Target cfg: %s\n", cfg.TargetCfg)
 	fmt.Printf("  Iface cfg : %s\n", cfg.InterfaceCfg)
-	fmt.Printf("  GDB port  : %s\n", cfg.GDBPort)
+	gdbPort := cfg.GDBPort
+	if ports != nil {
+		gdbPort = ports.GDB
+	}
+	fmt.Printf("  GDB port  : %s\n", gdbPort)
 
 	if ports != nil {
 		fmt.Printf("  Telnet/tcl: %s / %s\n", ports.Telnet, ports.TCL)

@@ -27,7 +27,14 @@ func (j *SrvEraseJob) Run(s *env.Settings, manager *process.Manager) error {
 		return err
 	}
 
-	ports := ocd.AllocatePorts(cfg.GDBPort)
+	if err := ocd.StopInterface(manager, cfg.Interface); err != nil {
+		return err
+	}
+
+	ports, err := ocd.ResolvePorts(cfg.GDBPort, cfg.GDBPortExplicit)
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("Erasing flash...")
 	ocd.PrintInfo(cfg, &ports)

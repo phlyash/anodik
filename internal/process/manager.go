@@ -16,37 +16,12 @@ type Manager struct {
 	WorkingDir string
 }
 
-func (m *Manager) Run(name string, args []string, background bool) error {
+func (m *Manager) Run(name string, args []string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = m.WorkingDir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-
-	if background {
-		if err := platform.ConfigureBackground(cmd); err != nil {
-			return err
-		}
-
-		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("start %s: %w", name, err)
-		}
-
-		if err := m.writeSession(name, cmd.Process.Pid, ""); err != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-			return err
-		}
-
-		go func() {
-			_ = cmd.Wait()
-			if !platform.ProcessAlive(cmd.Process.Pid) {
-				_ = m.removeSession(name)
-			}
-		}()
-
-		return nil
-	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("run %s: %w", name, err)
@@ -65,7 +40,7 @@ func (m *Manager) RunForeground(name string, args []string) error {
 	return platform.RunForeground(cmd)
 }
 
-func (m *Manager) RunDetachedLogged(name string, args []string, logPath, metadata string) (pid int, alive bool, err error) {
+func (m *Manager) RunDetachedLogged(session, name string, args []string, logPath, metadata string) (pid int, alive bool, err error) {
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return 0, false, fmt.Errorf("create log file: %w", err)
@@ -88,7 +63,7 @@ func (m *Manager) RunDetachedLogged(name string, args []string, logPath, metadat
 
 	pid = cmd.Process.Pid
 
-	if err := m.writeSession(name, pid, metadata); err != nil {
+	if err := m.writeSession(session, pid, metadata); err != nil {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
 		return 0, false, err
@@ -97,7 +72,7 @@ func (m *Manager) RunDetachedLogged(name string, args []string, logPath, metadat
 	go func() {
 		_ = cmd.Wait()
 		if !platform.ProcessAlive(pid) {
-			_ = m.removeSession(name)
+			_ = m.removeSession(session)
 		}
 	}()
 
@@ -197,11 +172,5 @@ func (m *Manager) removeSession(name string) error {
 }
 
 func sessionName(name string) string {
-	name = filepath.Base(name)
-
-	if ext := filepath.Ext(name); ext != "" {
-		name = strings.TrimSuffix(name, ext)
-	}
-
-	return name + ".session"
+	return filepath.Base(name) + ".session"
 }
