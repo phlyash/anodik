@@ -3,11 +3,20 @@ package platform
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type Context struct {
 	WorkingDir string
 	SDKRoot    string
+}
+
+func RuntimeBaseDir() string {
+	base := os.Getenv("XDG_RUNTIME_DIR")
+	if base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "niiet")
 }
 
 func Resolve() (Context, error) {

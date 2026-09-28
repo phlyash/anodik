@@ -6,7 +6,7 @@ import (
 )
 
 func StopInterface(manager *process.Manager, iface string) error {
-	session := SessionName(iface)
+	session := SessionPath(iface)
 	if !manager.IsAlive(session) {
 		return nil
 	}

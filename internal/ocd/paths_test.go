@@ -27,12 +27,30 @@ func TestSessionNameIsPerInterface(t *testing.T) {
 	}
 }
 
-func TestLogPathIsPerInterface(t *testing.T) {
-	want := filepath.Join("/wd", "build", "openocd_jlink.log")
-	if got := LogPath("/wd", "jlink"); got != want {
-		t.Errorf("LogPath = %q, want %q", got, want)
+func TestPathsArePerInterface(t *testing.T) {
+	if want := filepath.Join(RuntimeDir(), "openocd_jlink.log"); LogPath("jlink") != want {
+		t.Errorf("LogPath = %q, want %q", LogPath("jlink"), want)
 	}
-	if LogPath("/wd", "jlink") == LogPath("/wd", "ftdi") {
+	if want := filepath.Join(RuntimeDir(), "openocd_jlink.session"); SessionPath("jlink") != want {
+		t.Errorf("SessionPath = %q, want %q", SessionPath("jlink"), want)
+	}
+	if LogPath("jlink") == LogPath("ftdi") {
 		t.Error("different interfaces must not share a log file")
+	}
+	if SessionPath("jlink") == SessionPath("ftdi") {
+		t.Error("different interfaces must not share a session file")
+	}
+	if LogPath("jlink") == SessionPath("jlink") {
+		t.Error("log and session must not be the same file")
+	}
+}
+
+func TestRuntimeDirUnderNiiet(t *testing.T) {
+	dir := RuntimeDir()
+	if filepath.Base(dir) != "ocd" {
+		t.Errorf("RuntimeDir = %q, want it to end in ocd", dir)
+	}
+	if filepath.Base(filepath.Dir(dir)) != "niiet" {
+		t.Errorf("RuntimeDir = %q, want it under a niiet directory", dir)
 	}
 }

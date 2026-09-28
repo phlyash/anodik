@@ -41,8 +41,8 @@ func (j *RunJob) Run(s *env.Settings, manager *process.Manager) error {
 		return err
 	}
 
-	j.session = ocd.SessionName(cfg.Interface)
-	logPath := ocd.LogPath(s.WorkingDir, cfg.Interface)
+	j.session = ocd.SessionPath(cfg.Interface)
+	logPath := ocd.LogPath(cfg.Interface)
 
 	if err := ocd.StopInterface(manager, cfg.Interface); err != nil {
 		return err

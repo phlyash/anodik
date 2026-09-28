@@ -27,7 +27,7 @@ func (j *GDBJob) Run(s *env.Settings, manager *process.Manager) error {
 	}
 
 	if j.GDBPort == "" {
-		if _, gdbPort, ok := manager.Session(ocd.SessionName(cfg.Interface)); ok && gdbPort != "" {
+		if _, gdbPort, ok := manager.Session(ocd.SessionPath(cfg.Interface)); ok && gdbPort != "" {
 			cfg.GDBPort = gdbPort
 		}
 	}

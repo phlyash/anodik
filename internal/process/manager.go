@@ -41,6 +41,10 @@ func (m *Manager) RunForeground(name string, args []string) error {
 }
 
 func (m *Manager) RunDetachedLogged(session, name string, args []string, logPath, metadata string) (pid int, alive bool, err error) {
+	if err := os.MkdirAll(filepath.Dir(logPath), 0700); err != nil {
+		return 0, false, fmt.Errorf("create log directory: %w", err)
+	}
+
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return 0, false, fmt.Errorf("create log file: %w", err)
@@ -82,49 +86,39 @@ func (m *Manager) RunDetachedLogged(session, name string, args []string, logPath
 	return pid, platform.ProcessAlive(pid), nil
 }
 
-func (m *Manager) Kill(name string) error {
-	pid, _, err := m.readSession(name)
+func (m *Manager) Kill(sessionPath string) error {
+	pid, _, err := m.readSession(sessionPath)
 	if err != nil {
 		return err
 	}
 
 	if err := platform.KillProcess(pid); err != nil {
 		if !errors.Is(err, os.ErrProcessDone) {
-			return fmt.Errorf("kill %s: %w", name, err)
+			return fmt.Errorf("kill process %d: %w", pid, err)
 		}
 	}
 
-	return m.removeSession(name)
+	return m.removeSession(sessionPath)
 }
 
-func (m *Manager) Session(name string) (pid int, metadata string, ok bool) {
-	pid, metadata, err := m.readSession(name)
+func (m *Manager) Session(sessionPath string) (pid int, metadata string, ok bool) {
+	pid, metadata, err := m.readSession(sessionPath)
 	if err != nil {
 		return 0, "", false
 	}
 	return pid, metadata, true
 }
 
-func (m *Manager) IsAlive(name string) bool {
-	pid, _, ok := m.Session(name)
+func (m *Manager) IsAlive(sessionPath string) bool {
+	pid, _, ok := m.Session(sessionPath)
 	if !ok {
 		return false
 	}
 	return platform.ProcessAlive(pid)
 }
 
-func (m *Manager) sessionPath(name string) string {
-	return filepath.Join(
-		m.WorkingDir,
-		"build",
-		sessionName(name),
-	)
-}
-
-func (m *Manager) writeSession(name string, pid int, metadata string) error {
-	path := m.sessionPath(name)
-
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+func (m *Manager) writeSession(sessionPath string, pid int, metadata string) error {
+	if err := os.MkdirAll(filepath.Dir(sessionPath), 0700); err != nil {
 		return fmt.Errorf("create process session directory: %w", err)
 	}
 
@@ -133,18 +127,18 @@ func (m *Manager) writeSession(name string, pid int, metadata string) error {
 		content += metadata + "\n"
 	}
 
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(sessionPath, []byte(content), 0644); err != nil {
 		return fmt.Errorf("write process session: %w", err)
 	}
 
 	return nil
 }
 
-func (m *Manager) readSession(name string) (pid int, metadata string, err error) {
-	data, err := os.ReadFile(m.sessionPath(name))
+func (m *Manager) readSession(sessionPath string) (pid int, metadata string, err error) {
+	data, err := os.ReadFile(sessionPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return 0, "", fmt.Errorf("%s is not running", name)
+			return 0, "", fmt.Errorf("no process session at %s", sessionPath)
 		}
 		return 0, "", fmt.Errorf("read process session: %w", err)
 	}
@@ -153,7 +147,7 @@ func (m *Manager) readSession(name string) (pid int, metadata string, err error)
 
 	pid, convErr := strconv.Atoi(strings.TrimSpace(lines[0]))
 	if convErr != nil || pid <= 0 {
-		return 0, "", fmt.Errorf("invalid %s process session", name)
+		return 0, "", fmt.Errorf("invalid process session %s", sessionPath)
 	}
 
 	if len(lines) > 1 {
@@ -163,14 +157,10 @@ func (m *Manager) readSession(name string) (pid int, metadata string, err error)
 	return pid, metadata, nil
 }
 
-func (m *Manager) removeSession(name string) error {
-	err := os.Remove(m.sessionPath(name))
+func (m *Manager) removeSession(sessionPath string) error {
+	err := os.Remove(sessionPath)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
 	return err
-}
-
-func sessionName(name string) string {
-	return filepath.Base(name) + ".session"
 }

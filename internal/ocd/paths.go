@@ -1,22 +1,25 @@
 package ocd
 
 import (
+	"anodik/internal/platform"
 	"path/filepath"
 	"strings"
 )
 
-func RuntimeDir(workingDirectory string) string {
-	/// maybe move openocd runtime dir with logs and session file to somewhere like
-	/// .local/share/niiet/openocd/run or smth like this.
-	return filepath.Join(workingDirectory, "build")
+func RuntimeDir() string {
+	return filepath.Join(platform.RuntimeBaseDir(), "ocd")
 }
 
 func SessionName(iface string) string {
 	return "openocd_" + sanitizeInterface(iface)
 }
 
-func LogPath(workingDirectory, iface string) string {
-	return filepath.Join(RuntimeDir(workingDirectory), SessionName(iface)+".log")
+func SessionPath(iface string) string {
+	return filepath.Join(RuntimeDir(), SessionName(iface)+".session")
+}
+
+func LogPath(iface string) string {
+	return filepath.Join(RuntimeDir(), SessionName(iface)+".log")
 }
 
 func sanitizeInterface(iface string) string {

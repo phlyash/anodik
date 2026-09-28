@@ -5,7 +5,6 @@ import (
 	"anodik/internal/ocd"
 	"anodik/internal/process"
 	"fmt"
-	"os"
 )
 
 type OCDJob struct {
@@ -82,12 +81,8 @@ func startOCDBackground(s *env.Settings, manager *process.Manager, cfg ocd.Confi
 	fmt.Println("Starting OpenOCD in background...")
 	ocd.PrintInfo(cfg, &ports)
 
-	session := ocd.SessionName(cfg.Interface)
-	logPath := ocd.LogPath(s.WorkingDir, cfg.Interface)
-
-	if err := os.MkdirAll(ocd.RuntimeDir(s.WorkingDir), 0755); err != nil {
-		return fmt.Errorf("create openocd runtime dir: %w", err)
-	}
+	session := ocd.SessionPath(cfg.Interface)
+	logPath := ocd.LogPath(cfg.Interface)
 
 	pid, alive, err := manager.RunDetachedLogged(session, args[0], args[1:], logPath, ports.GDB)
 	if err != nil {
@@ -100,11 +95,12 @@ func startOCDBackground(s *env.Settings, manager *process.Manager, cfg ocd.Confi
 	}
 
 	fmt.Printf("OpenOCD started (PID: %d, interface: %s, GDB port: %s)\n", pid, cfg.Interface, ports.GDB)
+	fmt.Printf("log: %s\n", logPath)
 	return nil
 }
 
 func ocdStop(manager *process.Manager, iface string) error {
-	if err := manager.Kill(ocd.SessionName(iface)); err != nil {
+	if err := manager.Kill(ocd.SessionPath(iface)); err != nil {
 		fmt.Printf("OpenOCD not running on interface %s (stale or absent session)\n", iface)
 		return nil
 	}
@@ -113,7 +109,7 @@ func ocdStop(manager *process.Manager, iface string) error {
 }
 
 func ocdStatus(manager *process.Manager, iface string) error {
-	session := ocd.SessionName(iface)
+	session := ocd.SessionPath(iface)
 
 	pid, metadata, ok := manager.Session(session)
 	if !ok {
