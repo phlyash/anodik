@@ -117,11 +117,7 @@ func makeStructBlock(cfg *Config, divA, divB int, cpu string, fRef, requestedFOu
 	b.WriteString("    })\n\n")
 	fmt.Fprintf(&b, "#define %s \\\n", fOutMacro)
 	fmt.Fprintf(&b, "    LL_PLL_F_OUT_M(%d, \\\n", fRefInt)
-	if cfg.chip == chipVG015 {
-		fmt.Fprintf(&b, "        %d, %d, %d, %d, %d)\n\n", cfg.RDiv, cfg.NDiv, fracNum, divA, divB)
-	} else {
-		fmt.Fprintf(&b, "        %d, %d, %d, %d, %d, %d, %d)\n\n", cfg.RDiv, cfg.NDiv, fracNum, fracMod, divA, divB, cfg.PreDiv)
-	}
+	fmt.Fprintf(&b, "        %d, %d, %d, %d, %d, %d, %d)\n\n", cfg.RDiv, cfg.NDiv, fracNum, fracMod, divA, divB, cfg.PreDiv)
 	fmt.Fprintf(&b, "_Static_assert(%s == %d, \"Wrong PLL math\");\n", fOutMacro, fOutInt)
 
 	return b.String(), nil
