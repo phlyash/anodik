@@ -69,18 +69,15 @@ func (j *RunJob) Run(s *env.Settings, manager *process.Manager) error {
 
 	targetName, err := ocd.ResolveTargetName("127.0.0.1:"+ports.TCL, cfg.SoC, 2*time.Second)
 	if err != nil {
-		fmt.Println("error: could not find OpenOCD target for this SoC. See log:", logPath)
-		return err
-	}
+		fmt.Println("warning: could not find OpenOCD target for this SoC. See log:", logPath)
+	} else {
+		fmt.Printf("[TARGET] %s\n", targetName)
 
-	fmt.Printf("[TARGET] %s\n", targetName)
-
-	if examined, detail, err := ocd.CheckTargetExamined("127.0.0.1:"+ports.TCL, targetName, 2*time.Second); err != nil {
-		fmt.Println("error: OpenOCD is not responding on its TCL port. See log:", logPath)
-		return fmt.Errorf("openocd tcl check failed: %w", err)
-	} else if !examined {
-		fmt.Println("error: OpenOCD could not find the target chip (check programmer/wiring). See log:", logPath)
-		return fmt.Errorf("openocd target not examined: %s", detail)
+		if examined, detail, err := ocd.CheckTargetExamined("127.0.0.1:"+ports.TCL, targetName, 2*time.Second); err != nil {
+			fmt.Println("warning: OpenOCD is not responding on its TCL port. See log:", logPath)
+		} else if !examined {
+			fmt.Printf("warning: OpenOCD could not find the target chip (check programmer/wiring): %s. See log: %s\n", detail, logPath)
+		}
 	}
 
 	fmt.Printf("Starting GDB, connecting to localhost:%s...\n", ports.GDB)

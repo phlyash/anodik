@@ -51,6 +51,8 @@ var commandTable = map[string]command{
 	"uninstall":   {ignoreCtx(parseUninstall), func() jobs.Describable { return &jobs.UninstallJob{} }},
 }
 
+const Version string = "0.4"
+
 func wrapNoCtx(f parseFunc) parseFunc { return f }
 
 func ignoreCtx(f func([]string) (jobs.Job, error)) parseFunc {
@@ -61,6 +63,7 @@ func ignoreCtx(f func([]string) (jobs.Job, error)) parseFunc {
 
 func ParseArgs(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	if len(args) == 0 {
+		fmt.Printf("anodik version: %s\n", Version)
 		return nil, fmt.Errorf("command required (run: anodik help)")
 	}
 
