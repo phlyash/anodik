@@ -1,10 +1,13 @@
 package platform
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 )
+
+var ErrSdkRootNotRegistered = errors.New("sdk root not registered")
 
 type Context struct {
 	WorkingDir string
@@ -31,4 +34,35 @@ func Resolve() (Context, error) {
 	}
 
 	return Context{WorkingDir: workingDir, SDKRoot: sdkRoot}, nil
+}
+
+func ResolveSdkRoot() (string, error) {
+	registeredPath, err := readSdkRegistration()
+	if err != nil {
+		return "", err
+	}
+
+	return sdkRootFromRegisteredPath(registeredPath)
+}
+
+func sdkRootFromRegisteredPath(registeredPath string) (string, error) {
+	registeredPath, err := filepath.Abs(registeredPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve SDK registration path: %w", err)
+	}
+
+	if info, err := os.Stat(registeredPath); err != nil || !info.IsDir() {
+		return "", ErrSdkRootNotRegistered
+	}
+
+	root := registeredPath
+	for i := 0; i < 3; i++ {
+		root = filepath.Dir(root)
+	}
+
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		return "", ErrSdkRootNotRegistered
+	}
+
+	return root, nil
 }

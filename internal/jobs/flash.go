@@ -6,6 +6,7 @@ import (
 	"anodik/internal/process"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type FlashJob struct {
@@ -45,7 +46,7 @@ func (j *FlashJob) Run(s *env.Settings, manager *process.Manager) error {
 	fmt.Printf("Flashing %s...\n", cfg.ELFPath)
 	ocd.PrintInfo(cfg, &ports)
 
-	tail := []string{"-c", "program " + cfg.ELFPath + " verify reset exit"}
+	tail := []string{"-c", "program " + filepath.ToSlash(cfg.ELFPath) + " verify reset exit"}
 	args := ocd.Command(s, s.SDKRoot, cfg, ports, tail)
 
 	return manager.RunForeground(args[0], args[1:])

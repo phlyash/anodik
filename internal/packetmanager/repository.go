@@ -204,14 +204,6 @@ func commandExists(name string) bool {
 	return err == nil
 }
 
-func findTool(dir, name string) bool {
-	if dir == "" {
-		return commandExists(name)
-	}
-	_, err := exec.LookPath(dir + "/" + name)
-	return err == nil
-}
-
 func testTool(tool *Tool, s *env.Settings) error {
 	command := tool.CommandName(s)
 

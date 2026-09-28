@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -59,9 +58,7 @@ func ProcessAlive(pid int) bool {
 
 const SDK_REGISTRY_KEY = `Software\Kitware\CMake\Packages\RiscvSdk`
 
-var ErrSdkRootNotRegistered = errors.New("sdk root not registered")
-
-func ResolveSdkRoot() (string, error) {
+func readSdkRegistration() (string, error) {
 	key, err := registry.OpenKey(registry.CURRENT_USER, SDK_REGISTRY_KEY, registry.QUERY_VALUE)
 	if err != nil {
 		if errors.Is(err, registry.ErrNotExist) {
@@ -84,22 +81,7 @@ func ResolveSdkRoot() (string, error) {
 		return "", ErrSdkRootNotRegistered
 	}
 
-	registeredPath, err = filepath.Abs(registeredPath)
-	if err != nil {
-		return "", fmt.Errorf("resolve SDK registration path: %w", err)
-	}
-
-	root := registeredPath
-	for i := 0; i < 3; i++ {
-		root = filepath.Dir(root)
-	}
-
-	info, err := os.Stat(root)
-	if err != nil || !info.IsDir() {
-		return "", ErrSdkRootNotRegistered
-	}
-
-	return root, nil
+	return registeredPath, nil
 }
 
 func RegisterSdk(path string) error {

@@ -4,7 +4,6 @@ package platform
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -52,10 +51,7 @@ func ProcessAlive(pid int) bool {
 const CMAKE_PACKAGE_PATH = ".cmake/packages/RiscvSdk/riscv-sdk"
 const CMAKE_PACKAGE_DIR_PATH = ".cmake/packages/RiscvSdk"
 
-var ErrSdkRootNotRegistered = errors.New("sdk root not registered")
-
-func ResolveSdkRoot() (string, error) {
-
+func readSdkRegistration() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("cannot find user home directory, %w", err)
@@ -63,13 +59,13 @@ func ResolveSdkRoot() (string, error) {
 
 	path := filepath.Join(home, CMAKE_PACKAGE_PATH)
 
+	if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+		return "", ErrSdkRootNotRegistered
+	}
+
 	file, err := os.Open(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", ErrSdkRootNotRegistered
-		}
-
-		return "", fmt.Errorf("cannot read SDK registration: %w", err)
+		return "", ErrSdkRootNotRegistered
 	}
 	defer file.Close()
 
@@ -86,22 +82,7 @@ func ResolveSdkRoot() (string, error) {
 		return "", ErrSdkRootNotRegistered
 	}
 
-	registeredPath, err = filepath.Abs(registeredPath)
-	if err != nil {
-		return "", fmt.Errorf("resolve SDK registration path: %w", err)
-	}
-
-	root := registeredPath
-	for i := 0; i < 3; i++ {
-		root = filepath.Dir(root)
-	}
-
-	info, err := os.Stat(root)
-	if err != nil || !info.IsDir() {
-		return "", ErrSdkRootNotRegistered
-	}
-
-	return root, nil
+	return registeredPath, nil
 }
 
 func RegisterSdk(target string) error {
