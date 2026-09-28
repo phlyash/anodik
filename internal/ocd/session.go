@@ -47,8 +47,6 @@ func WriteSession(workingDirectory string, pid int, gdbPort string) error {
 	return nil
 }
 
-// ReadSession returns the running OpenOCD session, or ok=false if no
-// session file exists (nothing is running, or a stale file was cleaned up).
 func ReadSession(workingDirectory string) (session Session, ok bool, err error) {
 	file, err := os.Open(sessionPath(workingDirectory))
 	if err != nil {
@@ -92,9 +90,6 @@ func RemoveSession(workingDirectory string) error {
 	return err
 }
 
-// SessionGDBPort returns the gdb port of a currently running OpenOCD
-// session, or "" if none is running. Used by gdb/flash-go to attach to an
-// already-started server without re-specifying the port.
 func SessionGDBPort(workingDirectory string) string {
 	session, ok, err := ReadSession(workingDirectory)
 	if err != nil || !ok {

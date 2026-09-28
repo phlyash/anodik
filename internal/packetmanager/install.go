@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"time"
 )
 
 func Install(packet *Packet, target_path string) error {
@@ -41,7 +40,10 @@ func Download(url string) (string, error) {
 		return "", err
 	}
 
-	client := &http.Client{Timeout: 5 * time.Minute}
+	client, err := httpClient("")
+	if err != nil {
+		return "", err
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {

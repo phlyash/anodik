@@ -51,22 +51,14 @@ var commandTable = map[string]command{
 	"uninstall":   {ignoreCtx(parseUninstall), func() jobs.Describable { return &jobs.UninstallJob{} }},
 }
 
-// wrapNoCtx is an identity adapter kept so every commandTable entry has the
-// same parseFunc shape regardless of whether the underlying parse<X>
-// happens to need sdkRoot/workingDir.
 func wrapNoCtx(f parseFunc) parseFunc { return f }
 
-// ignoreCtx adapts a parse<X> that doesn't need sdkRoot/workingDir to the
-// common parseFunc shape used by commandTable.
 func ignoreCtx(f func([]string) (jobs.Job, error)) parseFunc {
 	return func(args []string, _, _ string) (jobs.Job, error) {
 		return f(args)
 	}
 }
 
-// ParseArgs parses argv into a Job. sdkRoot and workingDir must already be
-// resolved (see platform.Resolve) since example/project directory
-// resolution happens as part of parsing, not later during Prepare/Run.
 func ParseArgs(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("command required (run: anodik help)")
@@ -94,10 +86,6 @@ func ParseArgs(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	return nil, fmt.Errorf("unknown command %q (run: anodik help)", args[0])
 }
 
-// printGlobalHelp prints the full command list, built from commandTable so
-// it always matches what's actually dispatchable. Each command's Describe()
-// is read off a zero-value job, so this never runs real flag/example
-// resolution and can't fail even for commands that require an example.
 func printGlobalHelp() {
 	entries := make([]jobs.CommandHelp, 0, len(commandTable))
 	for name, cmd := range commandTable {
@@ -106,17 +94,10 @@ func printGlobalHelp() {
 	jobs.PrintCommandList(os.Stdout, entries)
 }
 
-// printCommandHelp prints a single command's detailed help.
 func printCommandHelp(name string, job jobs.Describable) {
 	job.Describe().Print(os.Stdout, name)
 }
 
-// hasHelpToken reports whether "help" appears anywhere among args. Checked
-// before the command's own flag parsing so "anodik build help",
-// "anodik flash --soc x help", etc. all short-circuit to help output
-// without resolving examples or validating other flags — per the CLI
-// contract, a positional "help" makes everything after it (and around it)
-// irrelevant.
 func hasHelpToken(args []string) bool {
 	for _, a := range args {
 		if jobs.IsHelpToken(a) {
@@ -132,21 +113,11 @@ func newFlagSet(name string) *flag.FlagSet {
 	return fs
 }
 
-// parseExampleOptions registers --example/--all and, via
-// resolvePositionalExample, allows the example name to be given as a bare
-// positional argument instead (e.g. "anodik build rndis").
 func parseExampleOptions(fs *flag.FlagSet, options *jobs.ExampleOptions) {
 	fs.StringVar(&options.Example, "example", "", "")
 	fs.BoolVar(&options.All, "all", false, "")
 }
 
-// resolvePositionalExample fills options.Example from the first leftover
-// positional argument after fs.Parse, if --example wasn't given explicitly.
-// flag.FlagSet stops parsing at the first non-flag token, so a positional
-// example name must come before any flags: "anodik build rndis --release"
-// works, "anodik build --release rndis" does not (use --example instead).
-// Returns an error if more than one positional argument is left over, since
-// that's more likely a typo than an intentional second example name.
 func resolvePositionalExample(fs *flag.FlagSet, options *jobs.ExampleOptions) error {
 	remaining := fs.Args()
 	if len(remaining) == 0 {
@@ -234,9 +205,6 @@ func (v buildTypeValue) Set(value string) error {
 	}
 }
 
-// resolveExample runs ExampleOptions.Resolve after flag parsing so the
-// project directory is known before Prepare/Run — required for commands
-// that need a project (i.e. anything requiring the SDK root).
 func resolveExample(fs *flag.FlagSet, options *jobs.ExampleOptions, sdkRoot, workingDir string) error {
 	if err := resolvePositionalExample(fs, options); err != nil {
 		return err

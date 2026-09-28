@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// Command builds the full openocd argv for cfg/ports. tail is appended
-// verbatim after the interface/target config files and any extra args from
-// settings — used to inject a one-off -c command such as flashing or
-// service erase.
 func Command(s *env.Settings, sdkRoot string, cfg Config, ports Ports, tail []string) []string {
 	args := []string{toolchain.OpenOCD(s), "-s", HelpersDir(sdkRoot)}
 
@@ -26,10 +22,6 @@ func Command(s *env.Settings, sdkRoot string, cfg Config, ports Ports, tail []st
 	return append(args, tail...)
 }
 
-// splitShellArgs is a minimal shlex.split equivalent: splits on whitespace,
-// honoring single and double quotes. Extra OpenOCD args are simple flag
-// lists in practice, so this covers the real-world cases without pulling in
-// a shell-parsing dependency.
 func splitShellArgs(s string) []string {
 	var args []string
 	var current strings.Builder

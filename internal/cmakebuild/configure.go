@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-// ConfigureArgs builds the `cmake -S ... -B ... -G Ninja ...` argv for
-// configuring srcDir into buildDir at the given build type.
 func ConfigureArgs(s *env.Settings, srcDir, buildDir string, buildType buildtype.BuildType) []string {
 	args := []string{
 		toolchain.CMake(s),

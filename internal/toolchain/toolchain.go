@@ -17,10 +17,6 @@ func Prefix(s *env.Settings) string {
 	return DefaultPrefix
 }
 
-// binary resolves a tool named "<prefix>-<suffix>" inside binDir if set,
-// otherwise returns the bare name to be looked up on PATH. On Windows the
-// binDir form gets an .exe suffix; the bare-name form is left to the OS
-// (exec.LookPath already checks PATHEXT).
 func binary(binDir, prefix, suffix string) string {
 	name := prefix + "-" + suffix
 

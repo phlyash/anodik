@@ -11,8 +11,6 @@ import (
 	"strconv"
 )
 
-// EnsureConfigured runs `cmake -S srcDir -B buildDir ...` if the stamp from
-// a previous configure doesn't match what would be generated now.
 func EnsureConfigured(s *env.Settings, manager *process.Manager, srcDir, buildDir string, buildType buildtype.BuildType) error {
 	args := ConfigureArgs(s, srcDir, buildDir, buildType)
 
@@ -27,8 +25,6 @@ func EnsureConfigured(s *env.Settings, manager *process.Manager, srcDir, buildDi
 	return WriteStamp(buildDir, args)
 }
 
-// Build configures (if needed) and builds srcDir/buildDir, then links
-// compile_commands.json into projectDir/build for editor tooling.
 func Build(s *env.Settings, manager *process.Manager, srcDir, buildDir, projectDir string, buildType buildtype.BuildType, jobCount int) error {
 	if err := EnsureConfigured(s, manager, srcDir, buildDir, buildType); err != nil {
 		return err
@@ -49,8 +45,6 @@ func Build(s *env.Settings, manager *process.Manager, srcDir, buildDir, projectD
 	return LinkCompileCommands(s, buildDir, projectDir)
 }
 
-// Clean removes the build directory and any linked compile_commands.json
-// left in projectDir.
 func Clean(buildDir, projectDir string) error {
 	if err := os.RemoveAll(buildDir); err != nil {
 		return fmt.Errorf("remove build dir: %w", err)

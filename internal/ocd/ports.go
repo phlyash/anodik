@@ -18,10 +18,6 @@ type Ports struct {
 	TCL    string
 }
 
-// AllocatePorts slides the gdb/telnet/tcl triple by a shared offset onto
-// free ports, keeping the familiar port layout (telnet = gdb_base_offset +
-// 4444, tcl = gdb_base_offset + 6666) even when the preferred gdb port is
-// busy.
 func AllocatePorts(gdbPort string) Ports {
 	gdbBase, err := strconv.Atoi(gdbPort)
 	if err != nil {

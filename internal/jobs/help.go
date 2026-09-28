@@ -9,8 +9,8 @@ import (
 
 // FlagHelp describes a single CLI flag for help output.
 type FlagHelp struct {
-	Name string // without leading dashes, e.g. "soc"
-	Arg  string // value placeholder, e.g. "<name>"; empty for boolean flags
+	Name string
+	Arg  string
 	Desc string
 }
 
@@ -25,9 +25,6 @@ type HelpInfo struct {
 	Flags   []FlagHelp
 }
 
-// Merge combines this HelpInfo's flags with other Options groups' flags,
-// keeping Summary/Usage from the receiver. Used by jobs to assemble their
-// full help from embedded option groups.
 func (h HelpInfo) Merge(others ...HelpInfo) HelpInfo {
 	for _, other := range others {
 		h.Flags = append(h.Flags, other.Flags...)
@@ -35,7 +32,6 @@ func (h HelpInfo) Merge(others ...HelpInfo) HelpInfo {
 	return h
 }
 
-// Print writes the command's usage line and flag table to w.
 func (h HelpInfo) Print(w io.Writer, command string) {
 	fmt.Fprintf(w, "anodik %s — %s\n", command, h.Summary)
 
@@ -83,7 +79,6 @@ type CommandHelp struct {
 	Info HelpInfo
 }
 
-// PrintCommandList writes an alphabetized command summary table to w.
 func PrintCommandList(w io.Writer, commands []CommandHelp) {
 	sorted := make([]CommandHelp, len(commands))
 	copy(sorted, commands)
@@ -105,15 +100,10 @@ func PrintCommandList(w io.Writer, commands []CommandHelp) {
 	fmt.Fprintln(w, "\nrun 'anodik <command> help' for details on a specific command")
 }
 
-// IsHelpToken reports whether arg is a request for help, positionally
-// (e.g. "anodik build help") rather than as a --flag.
 func IsHelpToken(arg string) bool {
 	return strings.EqualFold(arg, "help")
 }
 
-// FindHelpToken reports whether any argument in args is a help token, and
-// its index. Per the CLI contract, everything from that point on is
-// ignored — help wins over any other flag or positional argument.
 func FindHelpToken(args []string) (index int, found bool) {
 	for i, a := range args {
 		if IsHelpToken(a) {

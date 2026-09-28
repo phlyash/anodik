@@ -17,14 +17,14 @@ const (
 // Priority for every field is CLI flag > debug.mk (the example's last
 // build) > local.env/user env > built-in default.
 type Config struct {
-	SoC             string
-	Interface       string
-	GDBPort         string
-	TargetCfg       string
-	InterfaceCfg    string
-	ExtraArgs       string
-	ELFPath         string
-	HasELFPath      bool
+	SoC          string
+	Interface    string
+	GDBPort      string
+	TargetCfg    string
+	InterfaceCfg string
+	ExtraArgs    string
+	ELFPath      string
+	HasELFPath   bool
 }
 
 func ocdDir(sdkRoot string) string {
@@ -43,9 +43,6 @@ func InterfaceCfgDir(sdkRoot string) string {
 	return filepath.Join(ocdDir(sdkRoot), "interface")
 }
 
-// Resolve computes a Config for the given example (may be "" for
-// example-independent commands like srv_erase). cliSoC/cliInterface/
-// cliGDBPort are the values passed on the command line, if any.
 func Resolve(s *env.Settings, exampleName, cliSoC, cliInterface, cliGDBPort string) (Config, error) {
 	var mk *env.BuildConfig
 	if exampleName != "" {

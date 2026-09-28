@@ -6,27 +6,14 @@ import (
 	"sort"
 )
 
-// SolveOptions mirrors the arguments to calc.py's solve(): the target
-// chip, the reference frequency, one or two desired output frequencies
-// (kHz), and the acceptable error (kHz).
 type SolveOptions struct {
-	SoC     string   // chip name, case-insensitive (e.g. "k1921vg3t")
-	FRef    float64  // reference frequency, kHz
-	FOut1   float64  // desired primary output frequency, kHz
-	FOut2   *float64 // desired secondary output frequency, kHz; nil for single-output chips/requests
-	Epsilon float64  // acceptable error, kHz; if 0, defaults to 1e-3 as in calc.py
+	SoC     string
+	FRef    float64
+	FOut1   float64
+	FOut2   *float64
+	Epsilon float64
 }
 
-// Solve computes the PLL coefficient sets for the requested chip and
-// frequencies. It returns every solution within Epsilon of the target,
-// sorted best-first by the same criteria as calc.py's _sort_key, or the
-// single closest solution if none landed within Epsilon.
-//
-// Returns an error if the SoC name is unknown, if FOut2 is given for a
-// chip that doesn't support a second output (or omitted for one that
-// requires it isn't checked here — a nil FOut2 always means "solve for
-// FOut1 alone", matching solve(cpu, f_ref, f_out1) with f_out2=None), or if
-// FRef/FOut1/FOut2 fall outside the chip's supported ranges.
 func Solve(opts SolveOptions) ([]Config, error) {
 	epsilon := opts.Epsilon
 	if epsilon == 0 {
@@ -91,9 +78,6 @@ func toLower(s string) string {
 	return string(out)
 }
 
-// solveConfig is a direct port of ConfigBase.solve_config: the
-// single-output brute-force search over (div1a, div1b, rdiv, prediv)
-// (or the chip-specific iteration order for VG015's shared common loop).
 func solveConfig(chip chipKind, fRef, fOut, epsilon float64) ([]Config, error) {
 	lim := chipLimits(chip)
 
@@ -199,9 +183,6 @@ type dualScored struct {
 	cfg     Config
 }
 
-// solveBothConfigs is a direct port of K1921VG015Config.solve_both_configs:
-// the dual-output search that shares an (rdiv, ndiv[, frac]) VCO setting
-// across two independently chosen output divider pairs.
 func solveBothConfigs(chip chipKind, fRef, fOut1, fOut2, epsilon float64) ([]Config, error) {
 	lim := chipLimits(chip)
 
@@ -304,7 +285,6 @@ type divCandidate struct {
 	err  float64
 }
 
-// findDividers is a direct port of K1921VG015Config._find_dividers.
 func findDividers(lim limits, fVCO, fOutTarget, epsilon float64) []divCandidate {
 	var out []divCandidate
 	for _, a := range lim.aRange() {
@@ -318,10 +298,6 @@ func findDividers(lim limits, fVCO, fOutTarget, epsilon float64) []divCandidate 
 	return out
 }
 
-// fracCandidatesVG015 is a direct port of K1921VG015Config._frac_candidates:
-// candidate fractional parts of N that could put either output frequency
-// exactly on target for some (a, b) divider pair, restricted to the frac
-// window implied by the VCO frequency limits.
 func fracCandidatesVG015(c *Config, lim limits, fRef, fOut1, fOut2 float64) []float64 {
 	fPFD := c.FPFD(fRef)
 	fracLo := math.Max(0.0, 200e3/fPFD-float64(c.NDiv))
@@ -360,9 +336,6 @@ func maxInt(vals []int) int {
 	return m
 }
 
-// sortKey is a direct port of calc.py's _sort_key: lower is better, in
-// this field order. lessBySortKey compares two configs by this key
-// tuple lexicographically, matching Python's tuple comparison.
 func lessBySortKey(fRef float64, a, b *Config) bool {
 	ka := sortKeyOf(fRef, a)
 	kb := sortKeyOf(fRef, b)
@@ -374,11 +347,6 @@ func lessBySortKey(fRef float64, a, b *Config) bool {
 	return false
 }
 
-// sortKeyOf computes the 7-tuple penalty vector for cfg, mirroring
-// _sort_key: integer-mode preferred over fractional, more balanced output
-// dividers preferred, larger total output divider preferred, VCO in
-// 600-1000 MHz preferred, larger NDIV preferred, smaller RDIV preferred,
-// smaller PreDiv preferred.
 func sortKeyOf(fRef float64, cfg *Config) [7]float64 {
 	fVCO := cfg.FVCO(fRef)
 

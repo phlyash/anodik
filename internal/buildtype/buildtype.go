@@ -11,8 +11,6 @@ func (t BuildType) Valid() bool {
 	return t == DEBUG || t == RELEASE
 }
 
-// Resolved returns t if valid, otherwise fallback (typically a
-// settings-provided default), otherwise DEBUG.
 func (t BuildType) Resolved(fallback string) BuildType {
 	if t.Valid() {
 		return t

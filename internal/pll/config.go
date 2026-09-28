@@ -21,7 +21,6 @@ type Config struct {
 	chip chipKind
 }
 
-// N is the effective feedback multiplier: NDiv, or NDiv + Frac/Mod when a fractional solution was chosen.
 func (c *Config) N() float64 {
 	if c.DoFrac {
 		return float64(c.NDiv) + float64(c.Frac)/float64(c.Mod)
@@ -29,8 +28,6 @@ func (c *Config) N() float64 {
 	return float64(c.NDiv)
 }
 
-// FVCO is the PLL's internal VCO frequency for the given reference frequency (kHz).
-// VG015 uses a different formula (no PreDiv term, plain RDiv rather than RDiv+1) — see (*Config).isVG015.
 func (c *Config) FVCO(fRef float64) float64 {
 	if c.chip == chipVG015 {
 		return (fRef * c.N()) / float64(c.RDiv)
@@ -38,18 +35,14 @@ func (c *Config) FVCO(fRef float64) float64 {
 	return (fRef * c.N() * float64(c.PreDiv)) / float64(c.RDiv+1)
 }
 
-// FOut is the primary output frequency for the given reference frequency (kHz).
 func (c *Config) FOut(fRef float64) float64 {
 	return c.FVCO(fRef) / float64((c.DivA+1)*(c.DivB+1))
 }
 
-// FOut2 is the secondary output frequency (K1921VG015 only).
-// Calling this on a single-output chip is a caller error — Div2A/Div2B are zero there and the result is meaningless.
 func (c *Config) FOut2(fRef float64) float64 {
 	return c.FVCO(fRef) / float64((c.Div2A+1)*(c.Div2B+1))
 }
 
-// FPFD is the phase-frequency-detector frequency for the given reference frequency (kHz).
 func (c *Config) FPFD(fRef float64) float64 {
 	if c.chip == chipVG015 {
 		return fRef / float64(c.RDiv)
@@ -57,7 +50,6 @@ func (c *Config) FPFD(fRef float64) float64 {
 	return fRef / float64(c.RDiv+1)
 }
 
-// calcRequiredN is the feedback multiplier needed to hit fOut exactly, given the divider fields currently set on c.
 func (c *Config) calcRequiredN(fRef, fOut float64) float64 {
 	ab := float64((c.DivA + 1) * (c.DivB + 1))
 	if c.chip == chipVG015 {

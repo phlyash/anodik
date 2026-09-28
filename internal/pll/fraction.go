@@ -4,13 +4,6 @@ import "math"
 
 const vgxtMaxMod = (1 << 24) - 1
 
-// findFractionVGxT is a direct port of ConfigBase.find_fraction: a
-// Stern-Brocot / continued-fraction search for the best num/mod
-// approximation of fraction with mod <= vgxtMaxMod.
-//
-// fraction must be in (0, 1) and epsilon in (0, 1), matching the asserts
-// in calc.py; callers here never violate that (see solveConfig / dual
-// solve), so this doesn't re-validate.
 func findFractionVGxT(fraction, epsilon float64) (num, mod int) {
 	p0, q0 := 0, 1
 	p1, q1 := 1, 1
@@ -64,10 +57,6 @@ func findFractionVGxT(fraction, epsilon float64) (num, mod int) {
 // K1921VG015Config.find_fraction).
 const vg015Mod = 1 << 24
 
-// findFractionVG015 is a direct port of K1921VG015Config.find_fraction:
-// unlike the VGxT search, VG015's fractional field is a plain fixed-point
-// numerator over a constant power-of-two modulus, so this just rounds and
-// clamps into [1, mod-1].
 func findFractionVG015(fraction float64) (num, mod int) {
 	frac := int(math.Round(vg015Mod * fraction))
 	if frac < 1 {

@@ -164,10 +164,6 @@ func resolveNewProjectDir(workingDir, path string) (string, error) {
 	return filepath.Join(workingDir, path), nil
 }
 
-// copySDKTemplate copies name from the SDK root into targetDir if it
-// exists there. Missing template files are skipped rather than failing the
-// whole scaffold — they're editor/tooling niceties, not required for a
-// buildable project.
 func copySDKTemplate(sdkRoot, targetDir, name string) {
 	data, err := os.ReadFile(filepath.Join(sdkRoot, name))
 	if err != nil {

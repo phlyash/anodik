@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 )
 
-// Size prints a berkeley-format size report for the ELF built at
-// buildDir/<elfName>. Returns false if no ELF was found there.
 func Size(s *env.Settings, buildDir, elfName string) (found bool, err error) {
 	elfPath := filepath.Join(buildDir, elfName)
 	if _, statErr := os.Stat(elfPath); statErr != nil {

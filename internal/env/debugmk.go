@@ -10,14 +10,14 @@ import (
 )
 
 type BuildConfig struct {
-	TargetName      string // TARGET_NAME
-	SoC             string // TARGET_SOC
-	Linker          string // TARGET_LINKER
-	Interface       string // TARGET_INTERFACE
-	GDBPort         string // TARGET_GDB_PORT
-	OCDTargetCfg    string // TARGET_OCD_TARGET_CFG
-	OCDInterfaceCfg string // TARGET_OCD_INTERFACE_CFG
-	OCDExtraArgs    string // TARGET_OCD_EXTRA_ARGS
+	TargetName      string /// TARGET_NAME
+	SoC             string /// TARGET_SOC
+	Linker          string /// TARGET_LINKER
+	Interface       string /// TARGET_INTERFACE
+	GDBPort         string /// TARGET_GDB_PORT
+	OCDTargetCfg    string /// TARGET_OCD_TARGET_CFG
+	OCDInterfaceCfg string /// TARGET_OCD_INTERFACE_CFG
+	OCDExtraArgs    string /// TARGET_OCD_EXTRA_ARGS
 }
 
 var ErrDebugMkNotFound = fmt.Errorf("debug.mk not found: project not configured yet")
@@ -53,8 +53,6 @@ func ReadDebugMK(buildDir string) (*BuildConfig, error) {
 	return cfg, nil
 }
 
-// parseDebugMk разбирает KEY := VALUE строки.
-// Комментарии (#) и пустые строки пропускаются.
 func parseDebugMk(r io.Reader) (map[string]string, error) {
 	result := make(map[string]string)
 	scanner := bufio.NewScanner(r)

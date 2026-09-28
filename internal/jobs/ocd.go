@@ -62,10 +62,6 @@ func (j *OCDJob) Describe() HelpInfo {
 	}.Merge(j.ExampleOptions.Help(), j.SoCOptions.Help(), j.DebugOptions.Help(), j.ProcessOptions.Help())
 }
 
-// startOCDForeground runs openocd attached to the terminal. There is no
-// persistent session file here — ocd stop/status only track background
-// servers started with --background, matching the python tool's behavior
-// where a foreground openocd is owned by whoever's terminal it's in.
 func startOCDForeground(manager *process.Manager, cfg ocd.Config, ports ocd.Ports, args []string) error {
 	fmt.Println("Starting OpenOCD...")
 	ocd.PrintInfo(cfg, &ports)

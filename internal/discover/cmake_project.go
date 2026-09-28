@@ -12,9 +12,6 @@ var projectNamePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?im)^\s*project\s*\(\s*'([^']+)'`),
 }
 
-// ParseCMakeProjectName extracts the name passed to project(...) in a
-// CMakeLists.txt file. It returns "" if the file doesn't exist or has no
-// project() call.
 func ParseCMakeProjectName(cmakeListsPath string) string {
 	content, err := os.ReadFile(cmakeListsPath)
 	if err != nil {
@@ -42,9 +39,6 @@ var executablePatterns = []func(projectName string) *regexp.Regexp{
 	},
 }
 
-// IsExecutableProject reports whether dir contains a CMakeLists.txt that
-// declares a project() and builds it as an executable, either directly by
-// name or via ${PROJECT_NAME}. Returns the project name on success.
 func IsExecutableProject(dir string) (bool, string) {
 	cmakeListsPath := filepath.Join(dir, "CMakeLists.txt")
 

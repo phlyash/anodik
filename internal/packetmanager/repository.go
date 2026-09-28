@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -22,8 +23,8 @@ const RepoUrl = "http://aspect.niiet.ru/packages.json"
 
 type Tool struct {
 	LogName     string
-	PacketName  PacketType                 // name of packet on server
-	CommandName func(*env.Settings) string // name of command in PATH to lookup
+	PacketName  PacketType
+	CommandName func(*env.Settings) string
 	Demand      DemandState
 	MinVersion  version
 	GetVersion  func(command string) version
@@ -123,9 +124,32 @@ func (p Packet) SaveRequiredPaths(resolved_settings *env.Settings, installDir st
 	return env.Save(toolchain_settings)
 }
 
-func QueryPackets(url string) ([]Packet, error) {
-	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Get(url)
+const requestTimeout = 5 * time.Minute
+
+func httpClient(proxy string) (*http.Client, error) {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+
+	if proxy != "" {
+		parsed, err := url.Parse(proxy)
+		if err != nil {
+			return nil, fmt.Errorf("parse proxy %q: %w", proxy, err)
+		}
+		if parsed.Host == "" {
+			return nil, fmt.Errorf("proxy %q has no host: expected scheme://host:port", proxy)
+		}
+		transport.Proxy = http.ProxyURL(parsed)
+	}
+
+	return &http.Client{Timeout: requestTimeout, Transport: transport}, nil
+}
+
+func QueryPackets(repoUrl string) ([]Packet, error) {
+	client, err := httpClient("")
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Get(repoUrl)
 	if err != nil {
 		return nil, err
 	}

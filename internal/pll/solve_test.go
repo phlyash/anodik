@@ -6,16 +6,6 @@ import (
 	"testing"
 )
 
-// TestSolveKnownVG1TCoefficients checks the three reference solutions from
-// the SDK's example PLL header:
-//
-//	FROM_16_TO_125:              16 MHz -> 125 MHz, ref_div=1 fb_mult=125 out_div_a=1 out_div_b=3 prediv=1
-//	APP_PLL_FROM_16MHZ_TO_140MHZ: 16 MHz -> 140 MHz, ref_div=1 fb_mult=105 out_div_a=1 out_div_b=2 prediv=1
-//	USB_PLL_FROM_16MHZ_TO_60MHZ:  16 MHz -> 60 MHz,  ref_div=1 fb_mult=120 out_div_a=3 out_div_b=3 prediv=1
-//
-// All three exceed K1921VG3T/VG5T/VG7T's f_out ceiling (120 MHz / 100 MHz /
-// 100 MHz respectively), so they can only have come from K1921VG1T, whose
-// ConfigBase f_out range (200 Hz .. 204 MHz) is unrestricted.
 func TestSolveKnownVG1TCoefficients(t *testing.T) {
 	cases := []struct {
 		name                                               string
@@ -70,11 +60,6 @@ func TestSolveKnownVG1TCoefficients(t *testing.T) {
 	}
 }
 
-// TestGenerateHeaderMatchesReference renders each known solution to C and
-// checks that the emitted ll_pll_config_t fields and LL_PLL_F_OUT_M call
-// match the reference header byte for byte on the lines that matter (the
-// struct fields and the static assert), using the same prefixes as the
-// original example (none, "APP", "USB").
 func TestGenerateHeaderMatchesReference(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -127,9 +112,6 @@ func TestGenerateHeaderMatchesReference(t *testing.T) {
 				}
 			}
 
-			// The register field block should match the reference example
-			// exactly for the 125 MHz case (the one given verbatim in the
-			// original request).
 			if c.name == "no_prefix_125MHz" {
 				wantFields := []string{
 					".ref_div   = 1, \\",
@@ -150,8 +132,6 @@ func TestGenerateHeaderMatchesReference(t *testing.T) {
 	}
 }
 
-// TestSolveValidation checks that out-of-range inputs and unsupported
-// dual-output requests are rejected, matching calc.py's ValueError cases.
 func TestSolveValidation(t *testing.T) {
 	t.Run("unknown_soc", func(t *testing.T) {
 		if _, err := Solve(SolveOptions{SoC: "not-a-real-chip", FRef: 16000, FOut1: 100000}); err == nil {
@@ -181,11 +161,6 @@ func TestSolveValidation(t *testing.T) {
 	})
 }
 
-// TestSolveDualOutputVG015 exercises the K1921VG015 dual-output path.
-// There's no reference C example for this chip in the request, so this
-// only checks internal consistency: both outputs land within epsilon of
-// their targets, and GenerateHeader correctly refuses to emit
-// ll_pll_config_t for a dual-output solution.
 func TestSolveDualOutputVG015(t *testing.T) {
 	fOut2 := 20000.0
 	sols, err := Solve(SolveOptions{
@@ -225,9 +200,6 @@ func TestSolveDualOutputVG015(t *testing.T) {
 	}
 }
 
-// TestSolveBypassCase checks the f_ref == f_out short-circuit path
-// (solve_config's bypass branch in calc.py), which returns a fixed
-// bypass configuration rather than searching.
 func TestSolveBypassCase(t *testing.T) {
 	sols, err := Solve(SolveOptions{SoC: "k1921vg1t", FRef: 16000, FOut1: 16000})
 	if err != nil {
@@ -241,10 +213,6 @@ func TestSolveBypassCase(t *testing.T) {
 	}
 }
 
-// TestGenerateHeaderDualOutputSharesVCOFields checks that a dual-output
-// (K1921VG015) solution renders as two ll_pll_config_t blocks — one per
-// output — sharing every field except out_div_a/out_div_b, tagged _OUT1
-// and _OUT2 so the macro names don't collide.
 func TestGenerateHeaderDualOutputSharesVCOFields(t *testing.T) {
 	fOut2 := 20000.0
 	sols, err := Solve(SolveOptions{SoC: "k1921vg015", FRef: 20000, FOut1: 40000, FOut2: &fOut2})
@@ -290,11 +258,6 @@ func TestGenerateHeaderDualOutputSharesVCOFields(t *testing.T) {
 	}
 }
 
-// TestGenerateHeaderVG015SingleOutputRequest reproduces the reported bug:
-// requesting a single output frequency on a dual-output chip (no --output2)
-// must succeed and render exactly one block using the solution's primary
-// output — the second output divider pair the solver always computes for
-// this chip is simply not printed.
 func TestGenerateHeaderVG015SingleOutputRequest(t *testing.T) {
 	sols, err := Solve(SolveOptions{SoC: "k1921vg015", FRef: 20000, FOut1: 40000})
 	if err != nil {

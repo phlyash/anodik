@@ -15,11 +15,6 @@ func compileCommandsLinkPath(projectDir string) string {
 	return filepath.Join(projectDir, "build", "compile_commands.json")
 }
 
-// LinkCompileCommands exposes buildDir/compile_commands.json at
-// projectDir/build/compile_commands.json (symlinked on Unix, copied on
-// Windows where unprivileged symlinks aren't reliably available), first
-// patching it with toolchain include directories so clangd can resolve
-// standard library headers.
 func LinkCompileCommands(s *env.Settings, buildDir, projectDir string) error {
 	src := filepath.Join(buildDir, "compile_commands.json")
 	if _, err := os.Stat(src); err != nil {
@@ -38,7 +33,7 @@ func LinkCompileCommands(s *env.Settings, buildDir, projectDir string) error {
 	}
 
 	if src == dst {
-	/// standalone project
+		/// standalone project
 		return nil
 	}
 
@@ -60,9 +55,6 @@ func copyFile(src, dst string) error {
 	return os.WriteFile(dst, data, 0644)
 }
 
-// toolchainIncludeDirs returns the include directories clangd needs to
-// resolve libc/libstdc++ headers: CLANGD_EXTRA_INCLUDES if set, otherwise
-// auto-detected by asking the configured gcc for its search dirs.
 func toolchainIncludeDirs(s *env.Settings) []string {
 	if s.ClangdExtraIncludes != "" {
 		var dirs []string
@@ -125,9 +117,6 @@ func parseInstallPath(gccSearchDirsOutput string) string {
 	return ""
 }
 
-// findToolchainRoot walks up from installPath (bounded to a few levels,
-// matching the python tool's search depth) looking for a directory that
-// looks like the toolchain root: one containing bin/ or <prefix>/.
 func findToolchainRoot(installPath, prefix string) string {
 	root := installPath
 	for i := 0; i < 6; i++ {
@@ -181,9 +170,6 @@ func patchCompileCommands(path string, includeDirs []string) error {
 	return os.WriteFile(path, patched, 0644)
 }
 
-// patchCommandEntry inserts -I<dir> flags for any missing includeDirs into
-// a single compile_commands.json entry, preferring the "arguments" array
-// form and falling back to splitting the "command" string form.
 func patchCommandEntry(cmd compileCommandEntry, includeDirs []string) bool {
 	if rawArgs, ok := cmd["arguments"].([]any); ok {
 		args := make([]string, len(rawArgs))

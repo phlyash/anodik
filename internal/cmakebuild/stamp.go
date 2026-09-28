@@ -12,9 +12,6 @@ func stampPath(buildDir string) string {
 	return filepath.Join(buildDir, stampFileName)
 }
 
-// NeedsConfigure reports whether buildDir must be (re)configured: either it
-// has never been configured, or the cmake invocation would differ from the
-// one that produced the current build directory.
 func NeedsConfigure(buildDir string, args []string) bool {
 	existing, err := os.ReadFile(stampPath(buildDir))
 	if err != nil {
