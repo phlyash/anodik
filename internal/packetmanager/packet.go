@@ -38,6 +38,11 @@ var packetArchToGoArch = map[string]string{
 type PacketType = string
 
 const (
+	archiveZip   = "zip"
+	archiveTarGz = "tar.gz"
+)
+
+const (
 	anodik   PacketType = "anodik"
 	cmake    PacketType = "cmake"
 	compiler PacketType = "compiler"
@@ -63,18 +68,51 @@ func ParsePacketList(data []byte) ([]Packet, error) {
 	if err := json.Unmarshal(data, &packets); err != nil {
 		return nil, err
 	}
+	return packets, nil
+}
 
-	const arch = runtime.GOARCH
-	const os = runtime.GOOS
+func preferredArchive() string {
+	if runtime.GOOS == "windows" {
+		return archiveZip
+	}
+	return archiveTarGz
+}
 
-	filtered := make([]Packet, len(packets))
+func supportsHost(p Packet) bool {
+	return p.OS == runtime.GOOS && packetArchToGoArch[p.Arch] == runtime.GOARCH
+}
+
+func FilterPackets(packets []Packet) []Packet {
+	preferred := preferredArchive()
+
+	order := make([]string, 0, len(packets))
+	chosen := make(map[string]Packet, len(packets))
+
 	for _, p := range packets {
-		if packetArchToGoArch[p.Arch] == arch && p.OS == os {
-			filtered = append(filtered, p)
+		if !supportsHost(p) {
+			continue
+		}
+
+		key := p.Type + "@" + p.Version
+
+		current, seen := chosen[key]
+		if !seen {
+			order = append(order, key)
+			chosen[key] = p
+			continue
+		}
+
+		if current.Archiv != preferred && p.Archiv == preferred {
+			chosen[key] = p
 		}
 	}
 
-	return filtered, nil
+	filtered := make([]Packet, 0, len(order))
+	for _, key := range order {
+		filtered = append(filtered, chosen[key])
+	}
+
+	return filtered
 }
 
 func (p Packet) String() string {

@@ -164,7 +164,12 @@ func QueryPackets(repoUrl string) ([]Packet, error) {
 		return nil, err
 	}
 
-	return ParsePacketList(data)
+	packets, err := ParsePacketList(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return FilterPackets(packets), nil
 }
 
 func Doctor(s *env.Settings) ([]int, error) {
