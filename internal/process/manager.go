@@ -98,6 +98,11 @@ func (m *Manager) Kill(sessionPath string) error {
 		}
 	}
 
+	const killTimeout = 5 * time.Second
+	if err := waitForExit(pid, killTimeout); err != nil {
+		return err
+	}
+
 	return m.removeSession(sessionPath)
 }
 
@@ -163,4 +168,15 @@ func (m *Manager) removeSession(sessionPath string) error {
 		return nil
 	}
 	return err
+}
+
+func waitForExit(pid int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for platform.ProcessAlive(pid) {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("process %d did not exit within %s", pid, timeout)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil
 }
