@@ -52,7 +52,7 @@ var commandTable = map[string]command{
 	"update":      {ignoreCtx(parseUpdate), func() jobs.Describable { return &jobs.UpdateJob{} }},
 }
 
-const Version string = "0.4"
+const Version string = "0.5"
 
 func wrapNoCtx(f parseFunc) parseFunc { return f }
 
