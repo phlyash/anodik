@@ -49,6 +49,7 @@ var commandTable = map[string]command{
 	"srv_erase":   {wrapNoCtx(parseSrvErase), func() jobs.Describable { return &jobs.SrvEraseJob{} }},
 	"install":     {ignoreCtx(parseInstall), func() jobs.Describable { return &jobs.InstallJob{} }},
 	"uninstall":   {ignoreCtx(parseUninstall), func() jobs.Describable { return &jobs.UninstallJob{} }},
+	"update":      {ignoreCtx(parseUpdate), func() jobs.Describable { return &jobs.UpdateJob{} }},
 }
 
 const Version string = "0.4"
@@ -605,6 +606,29 @@ func parseSrvErase(args []string, sdkRoot, workingDir string) (jobs.Job, error) 
 	if err := job.ExampleOptions.ResolveOptional(sdkRoot, workingDir); err != nil {
 		return nil, err
 	}
+
+	return job, nil
+}
+
+func parseUpdate(args []string) (jobs.Job, error) {
+	job := &jobs.UpdateJob{}
+	fs := newFlagSet("update")
+
+	if err := fs.Parse(args); err != nil {
+		return nil, err
+	}
+
+	remaining := fs.Args()
+	if len(remaining) != 1 {
+		return nil, fmt.Errorf("update takes exactly one packet name (run: anodik update help)")
+	}
+	job.PacketName = remaining[0]
+
+	dir, err := toolchain.DefaultInstallDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("resolve default install directory: %w", err)
+	}
+	job.InstallDir = dir
 
 	return job, nil
 }
