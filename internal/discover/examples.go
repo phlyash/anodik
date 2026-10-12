@@ -2,6 +2,7 @@ package discover
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -54,29 +55,52 @@ func ExampleExists(sdkRoot, name string) bool {
 }
 
 func DiscoverExamples(dir string) []string {
+	const maxDepth = 3
+
 	var names []string
 
 	if !isDir(dir) {
 		return names
 	}
 
-	if ok, _ := IsExecutableProject(dir); ok {
-		names = append(names, filepath.Base(dir))
+	type item struct {
+		path  string
+		name  string // relative name, empty for root
+		depth int
 	}
 
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return names
-	}
+	queue := []item{{path: dir}}
 
-	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+
+		if ok, _ := IsExecutableProject(cur.path); ok {
+			name := cur.name
+			if name == "" {
+				name = filepath.Base(dir)
+			}
+			names = append(names, name)
+		}
+
+		if cur.depth >= maxDepth {
 			continue
 		}
 
-		sub := filepath.Join(dir, entry.Name())
-		if ok, _ := IsExecutableProject(sub); ok {
-			names = append(names, entry.Name())
+		entries, err := os.ReadDir(cur.path)
+		if err != nil {
+			continue
+		}
+
+		for _, e := range entries {
+			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+				continue
+			}
+			queue = append(queue, item{
+				path:  filepath.Join(cur.path, e.Name()),
+				name:  path.Join(cur.name, e.Name()),
+				depth: cur.depth + 1,
+			})
 		}
 	}
 
