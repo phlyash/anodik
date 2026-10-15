@@ -108,6 +108,9 @@ func isAbsLinkname(link string) bool {
 }
 
 func (x *extractor) prepare(destPath string) (string, error) {
+	if filepath.Clean(destPath) == x.dest {
+		return x.realDest, nil
+	}
 	rel, err := filepath.Rel(x.dest, filepath.Dir(destPath))
 	if err != nil {
 		return "", err
