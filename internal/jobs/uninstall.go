@@ -16,6 +16,7 @@ type UninstallJob struct {
 	InstallDir       string
 	PacketName       string
 	RemoveEverything bool
+	AssumeYes        bool
 }
 
 func (j *UninstallJob) Describe() HelpInfo {
@@ -24,6 +25,7 @@ func (j *UninstallJob) Describe() HelpInfo {
 		Usage:   "[--everything | <packettype>]",
 		Flags: []FlagHelp{
 			{Name: "everything", Desc: "clears everything: all packets, cmake hooks, all packets and user-wide configs"},
+			{Name: "yes", Desc: "do not ask before deleting (also -y)"},
 		},
 	}
 }
@@ -78,15 +80,17 @@ func (j *UninstallJob) runUninstallEverything(s *env.Settings) error {
 		return nil
 	}
 
-	answer, err := packetmanager.Ask(
-		"Do you want to remove directories listed above?",
-		packetmanager.Yes|packetmanager.No,
-	)
-	if err != nil {
-		return err
-	}
-	if answer == packetmanager.No {
-		return nil
+	if !j.AssumeYes {
+		answer, err := packetmanager.Ask(
+			"Do you want to remove directories listed above?",
+			packetmanager.Yes|packetmanager.No,
+		)
+		if err != nil {
+			return err
+		}
+		if answer == packetmanager.No {
+			return nil
+		}
 	}
 
 	var packetErr error = nil
@@ -109,9 +113,14 @@ func (j *UninstallJob) runUninstallEverything(s *env.Settings) error {
 }
 
 func (j *UninstallJob) runUninstallPacket(*env.Settings) error {
+	_, err := j.uninstallPacket()
+	return err
+}
+
+func (j *UninstallJob) uninstallPacket() (removed bool, err error) {
 	if !packetmanager.IsValidName(j.PacketName) {
-		return fmt.Errorf("Packet name %s is not valid, check packet names using `anodik install --list` command", j.PacketName)
+		return false, fmt.Errorf("Packet name %s is not valid, check packet names using `anodik install --list` command", j.PacketName)
 	}
 	packet := packetmanager.Packet{Type: j.PacketName}
-	return packetmanager.Uninstall(packet, j.InstallDir)
+	return packetmanager.Uninstall(packet, j.InstallDir, j.AssumeYes)
 }

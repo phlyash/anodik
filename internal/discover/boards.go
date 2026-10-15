@@ -8,8 +8,8 @@ import (
 )
 
 type Board struct {
-	Soc  string
-	Name string
+	Soc  string `json:"soc"`
+	Name string `json:"name"`
 }
 
 func (b Board) String() string {

@@ -3,6 +3,13 @@
 set -euo pipefail
 
 APP_NAME="anodik"
+VERSION=${ANODIK_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null || true)}
+VERSION=${VERSION#v}
+VERSION=${VERSION:-dev}
+if [[ ! $VERSION =~ ^([0-9][A-Za-z0-9._+~-]*|dev)$ ]]; then
+    echo "invalid version: $VERSION" >&2
+    exit 1
+fi
 OUT_DIR="dist"
 
 rm -rf "$OUT_DIR"
@@ -40,7 +47,7 @@ for target in "${TARGETS[@]}"; do
     GOARCH="$GOARCH" \
     go build \
         -trimpath \
-        -ldflags="-s -w" \
+        -ldflags="-s -w -X anodik/internal/cli.Version=${VERSION}" \
         -o "$OUTPUT" \
         .
 

@@ -73,35 +73,40 @@ func Download(url string) (string, error) {
 	return tmp.Name(), nil
 }
 
-func Uninstall(packet Packet, installDir string) error {
+func Uninstall(packet Packet, installDir string, assumeYes bool) (removed bool, err error) {
 	packetDir := packet.Directory(installDir)
 
-	_, err := os.Stat(packetDir)
-	if err != nil {
-		return fmt.Errorf("Packet %s is not installed in %s", packet.Type, installDir)
+	if _, err := os.Lstat(packetDir); err != nil {
+		return false, fmt.Errorf("Packet %s is not installed in %s", packet.Type, installDir)
 	}
 
-	answer, err := Ask(
-		fmt.Sprintf("Do you want to delete directory %s and all its contents", packetDir),
-		Yes|No,
-	)
-	if err != nil {
-		return err
-	}
-	if answer == No {
-		return nil
+	if !assumeYes {
+		answer, err := Ask(
+			fmt.Sprintf("Do you want to delete directory %s and all its contents", packetDir),
+			Yes|No,
+		)
+		if err != nil {
+			return false, err
+		}
+		if answer == No {
+			return false, nil
+		}
 	}
 
-	os.RemoveAll(packetDir)
+	if err := os.RemoveAll(packetDir); err != nil {
+		return false, fmt.Errorf("remove %s: %w", packetDir, err)
+	}
 
 	settings, err := env.ReadToolchainEnv()
 	if err != nil {
-		return fmt.Errorf("cannot clear .env settings: %w", err)
+		return true, fmt.Errorf("cannot clear .env settings: %w", err)
 	}
 
-	settings = CleanEnvTable[packet.Type](settings)
+	if clean, ok := CleanEnvTable[packet.Type]; ok {
+		settings = clean(settings)
+	}
 
-	return env.Save(settings)
+	return true, env.Save(settings)
 }
 
 func CheckSHA(packet *Packet, archivePath string) error {

@@ -4,7 +4,18 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 if [[ $# != 1 ]]; then
-  printf 'usage: %s OUTPUT_DIRECTORY\n' "$0" >&2
+  printf 'usage: [ANODIK_VERSION=<tag or version>] %s OUTPUT_DIRECTORY\n' "$0" >&2
+  exit 1
+fi
+
+# The version "anodik version" reports. A release tag such as v0.7 becomes
+# 0.7; the rule matches build/prepare-beget-release.py. Without one the
+# binaries report "dev".
+version=${ANODIK_VERSION:-}
+if [[ -z $version ]]; then
+  version=dev
+elif version=${version#v}; [[ ! $version =~ ^[0-9][A-Za-z0-9._+~-]*$ ]]; then
+  printf 'invalid ANODIK_VERSION\n' >&2
   exit 1
 fi
 
@@ -43,7 +54,7 @@ for target in "${targets[@]}"; do
     env CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
       "$GO_BIN" build \
         -trimpath \
-        -ldflags='-s -w' \
+        -ldflags="-s -w -X anodik/internal/cli.Version=$version" \
         -o "$stage/bin/$executable" \
         .
   )

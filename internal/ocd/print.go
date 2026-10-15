@@ -20,3 +20,35 @@ func PrintInfo(cfg Config, ports *Ports) {
 		fmt.Printf("  ELF       : %s\n", cfg.ELFPath)
 	}
 }
+
+type Info struct {
+	Example      string `json:"example,omitempty"`
+	SoC          string `json:"soc"`
+	Interface    string `json:"interface"`
+	TargetCfg    string `json:"targetCfg"`
+	InterfaceCfg string `json:"interfaceCfg"`
+	GDBPort      string `json:"gdbPort"`
+	TelnetPort   string `json:"telnetPort,omitempty"`
+	TCLPort      string `json:"tclPort,omitempty"`
+	ELF          string `json:"elf,omitempty"`
+}
+
+func NewInfo(example string, cfg Config, ports *Ports) Info {
+	info := Info{
+		Example:      example,
+		SoC:          cfg.SoC,
+		Interface:    cfg.Interface,
+		TargetCfg:    cfg.TargetCfg,
+		InterfaceCfg: cfg.InterfaceCfg,
+		GDBPort:      cfg.GDBPort,
+	}
+	if ports != nil {
+		info.GDBPort = ports.GDB
+		info.TelnetPort = ports.Telnet
+		info.TCLPort = ports.TCL
+	}
+	if cfg.HasELFPath {
+		info.ELF = cfg.ELFPath
+	}
+	return info
+}

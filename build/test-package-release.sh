@@ -80,7 +80,7 @@ mapfile -t calls <"$CAPTURE"
 [[ ${calls[2]} == $'0/windows/amd64\t'*'/bin/anodik.exe . ' ]] ||
   fail "unexpected Windows build: ${calls[2]}"
 for call in "${calls[@]}"; do
-  [[ $call == *'build -trimpath -ldflags=-s\ -w -o '* ]] ||
+  [[ $call == *'build -trimpath -ldflags=-s\ -w\ -X\ anodik/internal/cli.Version=dev -o '* ]] ||
     fail "missing release build flags: $call"
 done
 
@@ -116,5 +116,27 @@ PY
 
 expect_failure env GO_BIN="$FAKE_GO" GO_CAPTURE="$CAPTURE" \
   "$PACKAGE" "$TMP/out"
+
+# A release tag (0.7.1 or v0.7.1) is stamped into every binary as 0.7.1.
+for tag in 0.7.1 v0.7.1; do
+  : >"$CAPTURE"
+  ANODIK_VERSION=$tag GO_BIN="$FAKE_GO" GO_CAPTURE="$CAPTURE" "$PACKAGE" "$TMP/tagged-$tag"
+  mapfile -t calls <"$CAPTURE"
+  [[ ${#calls[@]} == 3 ]] || fail "expected three Go builds for $tag, got ${#calls[@]}"
+  for call in "${calls[@]}"; do
+    [[ $call == *'-ldflags=-s\ -w\ -X\ anodik/internal/cli.Version=0.7.1 -o '* ]] ||
+      fail "tag $tag not stamped as version: $call"
+  done
+done
+
+# Tags that are not versions, or could smuggle extra linker flags, are
+# refused before anything is built.
+for bad in 'vnext' '0.7 -X main.evil=1' '0.7;id' '-0.7' 'v'; do
+  : >"$CAPTURE"
+  expect_failure env ANODIK_VERSION="$bad" GO_BIN="$FAKE_GO" GO_CAPTURE="$CAPTURE" \
+    "$PACKAGE" "$TMP/bad-version"
+  [[ ! -s $CAPTURE ]] || fail "built with invalid version: $bad"
+  [[ ! -e $TMP/bad-version ]] || fail "created output for invalid version: $bad"
+done
 
 printf 'PASS: release packaging contract\n'

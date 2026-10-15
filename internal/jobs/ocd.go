@@ -13,6 +13,7 @@ type OCDJob struct {
 	SoCOptions
 	DebugOptions
 	ProcessOptions
+	JSONOutput
 }
 
 func (j *OCDJob) Prepare(*env.Settings, *process.Manager) error {
@@ -25,10 +26,17 @@ func (j *OCDJob) Run(s *env.Settings, manager *process.Manager) error {
 		return err
 	}
 
+	if j.JSON && !j.Status {
+		return fmt.Errorf("--json is only supported with --status")
+	}
 	if j.StopProcess {
 		return ocdStop(manager, cfg.Interface)
 	}
 	if j.Status {
+		if j.JSON {
+			status, _ := ocdStatusOf(manager, cfg.Interface)
+			return printJSON(status)
+		}
 		return ocdStatus(manager, cfg.Interface)
 	}
 
@@ -67,7 +75,9 @@ func (j *OCDJob) Describe() HelpInfo {
 	return HelpInfo{
 		Summary: "start (or stop/query) a standalone OpenOCD server",
 		Usage:   "[example] [flags]",
-	}.Merge(j.ExampleOptions.Help(), j.SoCOptions.Help(), j.DebugOptions.Help(), j.ProcessOptions.Help())
+	}.Merge(j.ExampleOptions.Help(), j.SoCOptions.Help(), j.DebugOptions.Help(), j.ProcessOptions.Help(), HelpInfo{
+		Flags: []FlagHelp{{Name: "json", Desc: "with --status: print machine-readable JSON"}},
+	})
 }
 
 func startOCDForeground(manager *process.Manager, cfg ocd.Config, ports ocd.Ports, args []string) error {
@@ -108,25 +118,46 @@ func ocdStop(manager *process.Manager, iface string) error {
 	return nil
 }
 
-func ocdStatus(manager *process.Manager, iface string) error {
+type OCDStatus struct {
+	Interface string `json:"interface"`
+	Running   bool   `json:"running"`
+	Stale   bool   `json:"stale"`
+	PID     int    `json:"pid,omitempty"`
+	GDBPort string `json:"gdbPort,omitempty"`
+}
+
+func ocdStatusOf(manager *process.Manager, iface string) (OCDStatus, bool) {
 	session := ocd.SessionPath(iface)
+	status := OCDStatus{Interface: iface}
 
 	pid, metadata, ok := manager.Session(session)
 	if !ok {
+		return status, false
+	}
+	status.PID = pid
+	status.GDBPort = metadata
+	status.Running = manager.IsAlive(session)
+	status.Stale = !status.Running
+	return status, true
+}
+
+func ocdStatus(manager *process.Manager, iface string) error {
+	status, found := ocdStatusOf(manager, iface)
+	if !found {
 		fmt.Printf("OpenOCD is NOT running on interface %s\n", iface)
 		return nil
 	}
 
 	state := "running"
-	if !manager.IsAlive(session) {
+	if status.Stale {
 		state = "NOT running (stale session)"
 	}
 
-	port := metadata
+	port := status.GDBPort
 	if port == "" {
 		port = "?"
 	}
 
-	fmt.Printf("OpenOCD on interface %s is %s (PID: %d, GDB port: %s)\n", iface, state, pid, port)
+	fmt.Printf("OpenOCD on interface %s is %s (PID: %d, GDB port: %s)\n", iface, state, status.PID, port)
 	return nil
 }

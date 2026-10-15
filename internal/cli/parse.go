@@ -50,9 +50,10 @@ var commandTable = map[string]command{
 	"install":     {ignoreCtx(parseInstall), func() jobs.Describable { return &jobs.InstallJob{} }},
 	"uninstall":   {ignoreCtx(parseUninstall), func() jobs.Describable { return &jobs.UninstallJob{} }},
 	"update":      {ignoreCtx(parseUpdate), func() jobs.Describable { return &jobs.UpdateJob{} }},
+	"version":     {ignoreCtx(parseVersion), func() jobs.Describable { return &jobs.VersionJob{} }},
 }
 
-const Version string = "0.6"
+var Version = "dev"
 
 func wrapNoCtx(f parseFunc) parseFunc { return f }
 
@@ -71,6 +72,10 @@ func ParseArgs(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	if jobs.IsHelpToken(args[0]) {
 		printGlobalHelp()
 		return nil, flag.ErrHelp
+	}
+
+	if args[0] == "--version" {
+		return parseVersion(args[1:])
 	}
 
 	if cmd, ok := commandTable[args[0]]; ok {
@@ -111,10 +116,51 @@ func hasHelpToken(args []string) bool {
 	return false
 }
 
+func parseFlags(fs *flag.FlagSet, args []string) error {
+	var positional []string
+	for {
+		if err := fs.Parse(args); err != nil {
+			return err
+		}
+		rest := fs.Args()
+		if len(rest) == 0 {
+			break
+		}
+		consumed := len(args) - len(rest)
+		if consumed > 0 && args[consumed-1] == "--" {
+			positional = append(positional, rest...)
+			break
+		}
+		positional = append(positional, rest[0])
+		args = rest[1:]
+	}
+	return fs.Parse(append([]string{"--"}, positional...))
+}
+
 func newFlagSet(name string) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	return fs
+}
+
+func parseJSONOption(fs *flag.FlagSet, options *jobs.JSONOutput) {
+	fs.BoolVar(&options.JSON, "json", false, "")
+}
+
+func parseYesOption(fs *flag.FlagSet, assumeYes *bool) {
+	fs.BoolVar(assumeYes, "yes", false, "")
+	fs.BoolVar(assumeYes, "y", false, "")
+}
+
+func installDir() (string, error) {
+	if settings, err := env.ReadToolchainEnv(); err == nil && settings.PacketsInstallPath != "" {
+		return settings.PacketsInstallPath, nil
+	}
+	dir, err := toolchain.DefaultInstallDirectory()
+	if err != nil {
+		return "", fmt.Errorf("resolve default install directory: %w", err)
+	}
+	return dir, nil
 }
 
 func parseExampleOptions(fs *flag.FlagSet, options *jobs.ExampleOptions) {
@@ -226,7 +272,7 @@ func parseBuild(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	parseExampleOptions(fs, &job.ExampleOptions)
 	parseBuildOptions(fs, &job.BuildOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolveExample(fs, &job.ExampleOptions, sdkRoot, workingDir); err != nil {
@@ -243,7 +289,7 @@ func parseConfigure(args []string, sdkRoot, workingDir string) (jobs.Job, error)
 	parseExampleOptions(fs, &job.ExampleOptions)
 	parseBuildOptions(fs, &job.BuildOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -263,7 +309,7 @@ func parseReconfigure(args []string, sdkRoot, workingDir string) (jobs.Job, erro
 	parseExampleOptions(fs, &job.ExampleOptions)
 	parseBuildOptions(fs, &job.BuildOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -282,7 +328,7 @@ func parseClean(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 
 	parseExampleOptions(fs, &job.ExampleOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolveExample(fs, &job.ExampleOptions, sdkRoot, workingDir); err != nil {
@@ -301,7 +347,7 @@ func parseFlash(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	parseDebugOptions(fs, &job.DebugOptions)
 	parseProcessOptions(fs, &job.ProcessOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -324,7 +370,7 @@ func parseRun(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	parseDebugOptions(fs, &job.DebugOptions)
 	parseProcessOptions(fs, &job.ProcessOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -345,8 +391,9 @@ func parseOCD(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	parseSoCOptions(fs, &job.SoCOptions)
 	parseDebugOptions(fs, &job.DebugOptions)
 	parseProcessOptions(fs, &job.ProcessOptions)
+	parseJSONOption(fs, &job.JSONOutput)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -368,7 +415,7 @@ func parseGDB(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	parseDebugOptions(fs, &job.DebugOptions)
 	parseProcessOptions(fs, &job.ProcessOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -389,7 +436,7 @@ func parsePll(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	parseSoCOptions(fs, &job.SoCOptions)
 	parsePllOptions(fs, &job.PllOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -405,7 +452,7 @@ func parseSize(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 
 	parseExampleOptions(fs, &job.ExampleOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -427,8 +474,9 @@ func parseSize(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 func parseDoctor(args []string) (jobs.Job, error) {
 	job := &jobs.DoctorJob{}
 	fs := newFlagSet("doctor")
+	parseJSONOption(fs, &job.JSONOutput)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -444,7 +492,7 @@ func parseNew(args []string) (jobs.Job, error) {
 	fs.BoolVar(&job.Zed, "zed", false, "")
 	fs.BoolVar(&job.VScode, "vscode", false, "")
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -458,8 +506,9 @@ func parseList(args []string) (jobs.Job, error) {
 	fs.BoolVar(&job.Interfaces, "interfaces", false, "")
 	fs.BoolVar(&job.SoCs, "socs", false, "")
 	fs.BoolVar(&job.Boards, "boards", false, "")
+	parseJSONOption(fs, &job.JSONOutput)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -473,8 +522,10 @@ func parseInstall(args []string) (jobs.Job, error) {
 	var path string
 	fs.StringVar(&path, "path", "", "")
 	fs.BoolVar(&job.List, "list", false, "")
+	fs.BoolVar(&job.Root, "root", false, "")
+	parseJSONOption(fs, &job.JSONOutput)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -493,22 +544,28 @@ func parseInstall(args []string) (jobs.Job, error) {
 	if job.List {
 		set++
 	}
+	if job.Root {
+		set++
+	}
 	if job.PacketName != "" {
 		set++
 	}
 	if set > 1 {
-		return nil, fmt.Errorf("--path, --list, and a packet name are mutually exclusive")
+		return nil, fmt.Errorf("--path, --list, --root, and a packet name are mutually exclusive")
+	}
+	if job.JSON && !job.List && !job.Root {
+		return nil, fmt.Errorf("--json is only supported with --list or --root")
 	}
 
 	if path != "" {
 		job.SetPath = true
 		job.InstallDir = path
 	} else {
-		defaultDir, err := toolchain.DefaultInstallDirectory()
+		dir, err := installDir()
 		if err != nil {
-			return nil, fmt.Errorf("resolve default install directory: %w", err)
+			return nil, err
 		}
-		job.InstallDir = defaultDir
+		job.InstallDir = dir
 	}
 
 	return job, nil
@@ -519,8 +576,9 @@ func parseUninstall(args []string) (jobs.Job, error) {
 	fs := newFlagSet("uninstall")
 
 	fs.BoolVar(&job.RemoveEverything, "everything", false, "")
+	parseYesOption(fs, &job.AssumeYes)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -543,18 +601,11 @@ func parseUninstall(args []string) (jobs.Job, error) {
 		return nil, fmt.Errorf("--everything, and a packet name are mutually exclusive")
 	}
 
-	var defaultDir string = ""
-	settings, err := env.ReadToolchainEnv()
-	if err != nil || settings.PacketsInstallPath == "" {
-		defaultDir, err = toolchain.DefaultInstallDirectory()
-		if err != nil {
-			return nil, fmt.Errorf("resolve default install directory: %w", err)
-		}
-	} else {
-		defaultDir = settings.PacketsInstallPath
+	dir, err := installDir()
+	if err != nil {
+		return nil, err
 	}
-
-	job.InstallDir = defaultDir
+	job.InstallDir = dir
 
 	return job, nil
 }
@@ -564,8 +615,9 @@ func parseInfo(args []string, sdkRoot, workingDir string) (jobs.Job, error) {
 	fs := newFlagSet("info")
 
 	parseExampleOptions(fs, &job.ExampleOptions)
+	parseJSONOption(fs, &job.JSONOutput)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -582,7 +634,7 @@ func parseRegister(args []string) (jobs.Job, error) {
 	job := &jobs.RegisterJob{}
 	fs := newFlagSet("register")
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -597,7 +649,7 @@ func parseSrvErase(args []string, sdkRoot, workingDir string) (jobs.Job, error) 
 	parseSoCOptions(fs, &job.SoCOptions)
 	parseProcessOptions(fs, &job.ProcessOptions)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 	if err := resolvePositionalExample(fs, &job.ExampleOptions); err != nil {
@@ -613,8 +665,9 @@ func parseSrvErase(args []string, sdkRoot, workingDir string) (jobs.Job, error) 
 func parseUpdate(args []string) (jobs.Job, error) {
 	job := &jobs.UpdateJob{}
 	fs := newFlagSet("update")
+	parseYesOption(fs, &job.AssumeYes)
 
-	if err := fs.Parse(args); err != nil {
+	if err := parseFlags(fs, args); err != nil {
 		return nil, err
 	}
 
@@ -624,11 +677,25 @@ func parseUpdate(args []string) (jobs.Job, error) {
 	}
 	job.PacketName = remaining[0]
 
-	dir, err := toolchain.DefaultInstallDirectory()
+	dir, err := installDir()
 	if err != nil {
-		return nil, fmt.Errorf("resolve default install directory: %w", err)
+		return nil, err
 	}
 	job.InstallDir = dir
 
+	return job, nil
+}
+
+func parseVersion(args []string) (jobs.Job, error) {
+	job := &jobs.VersionJob{Version: Version}
+	fs := newFlagSet("version")
+	parseJSONOption(fs, &job.JSONOutput)
+
+	if err := parseFlags(fs, args); err != nil {
+		return nil, err
+	}
+	if len(fs.Args()) > 0 {
+		return nil, fmt.Errorf("unexpected extra arguments: %v", fs.Args())
+	}
 	return job, nil
 }

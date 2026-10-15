@@ -1,15 +1,12 @@
 name: Build and release Anodik
 
 on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: Git tag used for the published GitHub Release
-        required: true
-        type: string
   push:
     branches:
       - master
+    tags:
+      - '[0-9]*'
+      - 'v[0-9]*'
   pull_request:
     branches:
       - master
@@ -43,16 +40,26 @@ jobs:
           python3 build/test-release-workflow.py
 
       - name: Package release
+        env:
+          ANODIK_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: bash build/package-release.sh dist/release
 
       - name: Verify release archives
         run: bash build/verify-release-files.sh dist/release
 
       - name: Smoke test Linux binary
+        env:
+          ANODIK_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           mkdir -p dist/smoke
           tar -xzf dist/release/anodik-linux-x86_64.tar.gz -C dist/smoke
           dist/smoke/bin/anodik help
+          expected=${ANODIK_VERSION#v}
+          actual=$(dist/smoke/bin/anodik version)
+          if [[ $actual != "${expected:-dev}" ]]; then
+            printf 'anodik version printed %s, expected %s\n' "$actual" "${expected:-dev}" >&2
+            exit 1
+          fi
 
       - name: Upload Linux tar.gz artifact
         uses: actions/upload-artifact@v7
@@ -104,7 +111,7 @@ jobs:
 
   release:
     name: Publish GitHub Release
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-24.04
     permissions:
@@ -124,7 +131,7 @@ jobs:
 
       - name: Validate release metadata
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: >-
           python3 build/prepare-beget-release.py
           --type anodik
@@ -138,17 +145,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           gh release create "$RELEASE_TAG" release-assets/* \
-            --target "$GITHUB_SHA" \
+            --verify-tag \
             --title "Anodik $RELEASE_TAG" \
             --generate-notes \
             --latest
 
   deploy-beget:
     name: Publish release to Aspect
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     needs: release
     runs-on: ubuntu-24.04
     steps:
@@ -166,7 +173,7 @@ jobs:
 
       - name: Prepare Aspect bundle
         env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_TAG: ${{ github.ref_name }}
         run: >-
           python3 build/prepare-beget-release.py
           --type anodik

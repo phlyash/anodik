@@ -172,31 +172,62 @@ func QueryPackets(repoUrl string) ([]Packet, error) {
 	return FilterPackets(packets), nil
 }
 
-func Doctor(s *env.Settings) ([]int, error) {
-	var numFailed int = 0
-	var listFailed []int = make([]int, len(RequiredToolTable))
+type ToolStatus struct {
+	Name     string `json:"name"`
+	Packet   string `json:"packet"`
+	Command  string `json:"command"`
+	Required bool   `json:"required"`
+	OK       bool   `json:"ok"`
+	Message  string `json:"message,omitempty"`
+}
 
+func CheckTools(s *env.Settings) []ToolStatus {
+	results := make([]ToolStatus, 0, len(RequiredToolTable))
 	for idx := range RequiredToolTable {
 		tool := &RequiredToolTable[idx]
-		err := testTool(tool, s)
-		if err != nil {
-			if tool.Demand == Required {
-				fmt.Printf(" %s: %s\n", tool.LogName, err)
-			} else {
-				fmt.Printf(" %s: optional: %s\n", tool.LogName, err)
-			}
-			listFailed = append(listFailed, idx)
-			numFailed++
-		} else {
-			fmt.Printf(" %s: [OK]\n", tool.LogName)
+		status := ToolStatus{
+			Name:     tool.LogName,
+			Packet:   tool.PacketName,
+			Command:  tool.CommandName(s),
+			Required: tool.Demand == Required,
+			OK:       true,
+		}
+		if err := testTool(tool, s); err != nil {
+			status.OK = false
+			status.Message = err.Error()
+		}
+		results = append(results, status)
+	}
+	return results
+}
+
+// MissingRequired counts the required tools that failed their check.
+func MissingRequired(results []ToolStatus) int {
+	n := 0
+	for _, r := range results {
+		if r.Required && !r.OK {
+			n++
 		}
 	}
+	return n
+}
 
-	if numFailed > 0 {
-		fmt.Printf("To install tools manually edit toolchain.env or local.env, or add tools to PATH, or use `anodik install (help)` command.")
+func PrintDoctor(w io.Writer, results []ToolStatus) {
+	failed := false
+	for _, r := range results {
+		switch {
+		case r.OK:
+			fmt.Fprintf(w, " %s: [OK]\n", r.Name)
+		case r.Required:
+			fmt.Fprintf(w, " %s: %s\n", r.Name, r.Message)
+		default:
+			fmt.Fprintf(w, " %s: optional: %s\n", r.Name, r.Message)
+		}
+		failed = failed || !r.OK
 	}
-
-	return listFailed, nil
+	if failed {
+		fmt.Fprintln(w, "To install tools manually edit toolchain.env or local.env, or add tools to PATH, or use `anodik install (help)` command.")
+	}
 }
 
 func commandExists(name string) bool {

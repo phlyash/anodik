@@ -6,6 +6,7 @@ import (
 	"anodik/internal/process"
 	"anodik/internal/toolchain"
 	"fmt"
+	"os"
 	"runtime"
 )
 
@@ -13,10 +14,12 @@ const Url = packetmanager.RepoUrl
 
 type InstallJob struct {
 	NoSDKRootRequirement
+	JSONOutput
 
 	InstallDir string
 	SetPath    bool
 	List       bool
+	Root       bool
 	PacketName string
 }
 
@@ -28,12 +31,14 @@ func (j *InstallJob) Run(s *env.Settings, _ *process.Manager) error {
 	switch {
 	case j.SetPath:
 		return runInstallSetPath(s, j.InstallDir)
+	case j.Root:
+		return j.printRoot()
 	case j.List:
-		return runInstallList(s)
+		return j.runInstallList()
 	case j.PacketName != "":
 		return runInstallPacket(j.PacketName, s, j.InstallDir)
 	default:
-		return fmt.Errorf("nothing to do: specify --path, --list, or a packet name (run: anodik install help)")
+		return fmt.Errorf("nothing to do: specify --path, --list, --root, or a packet name (run: anodik install help)")
 	}
 }
 
@@ -56,12 +61,13 @@ func (j *InstallJob) Describe() HelpInfo {
 	}
 	return HelpInfo{
 		Summary: "install useful tools: toolchain, openocd, debugger and etc",
-		Usage:   "[--path <dir> | --list | <packettype>]",
+		Usage:   "[--path <dir> | --list | --root | <packettype>]",
 		Flags: []FlagHelp{
 			{Name: "path", Arg: "/path/to/packet/storage", Desc: desc},
 			{Name: "list", Desc: "query the repository and print available packets for this OS/arch"},
+			{Name: "root", Desc: "print the directory packets are installed into"},
 		},
-	}
+	}.Merge(HelpInfo{Flags: []FlagHelp{{Name: "json", Desc: "with --list or --root: print machine-readable JSON"}}})
 }
 
 func runInstallSetPath(resolved_settings *env.Settings, path string) error {
@@ -81,10 +87,37 @@ func runInstallSetPath(resolved_settings *env.Settings, path string) error {
 	return nil
 }
 
-func runInstallList(*env.Settings) error {
+func (j *InstallJob) printRoot() error {
+	if j.JSON {
+		return printJSON(struct {
+			Root string `json:"root"`
+		}{j.InstallDir})
+	}
+	fmt.Println(j.InstallDir)
+	return nil
+}
+
+type AvailablePacket struct {
+	packetmanager.Packet
+	Installed bool `json:"installed"`
+}
+
+func (j *InstallJob) runInstallList() error {
 	packets, err := packetmanager.QueryPackets(Url)
 	if err != nil {
 		return fmt.Errorf("query packets: %w", err)
+	}
+
+	if j.JSON {
+		available := make([]AvailablePacket, 0, len(packets))
+		for _, p := range packets {
+			_, statErr := os.Stat(p.Directory(j.InstallDir))
+			available = append(available, AvailablePacket{Packet: p, Installed: statErr == nil})
+		}
+		return printJSON(struct {
+			Root    string            `json:"root"`
+			Packets []AvailablePacket `json:"packets"`
+		}{j.InstallDir, available})
 	}
 
 	if len(packets) == 0 {

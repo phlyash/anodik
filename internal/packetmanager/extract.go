@@ -127,6 +127,21 @@ func (x *extractor) prepare(destPath string) (string, error) {
 	return realParent, nil
 }
 
+func (x *extractor) symlink(destPath, linkname string) error {
+	if isAbsLinkname(linkname) {
+		return fmt.Errorf("symlink target unsafe: absolute target %q", linkname)
+	}
+	realParent, err := x.prepare(destPath)
+	if err != nil {
+		return err
+	}
+	resolvedTarget, err := x.resolve(realParent, linkname, 0)
+	if err != nil {
+		return fmt.Errorf("symlink target unsafe: %w", err)
+	}
+	return makeSymlink(linkname, destPath, resolvedTarget)
+}
+
 func (x *extractor) mkdir(destPath string) error {
 	if _, err := x.prepare(destPath); err != nil {
 		return err
@@ -206,6 +221,18 @@ func (x *extractor) extractZipEntry(f *zip.File) error {
 	if f.FileInfo().IsDir() {
 		return x.mkdir(destPath)
 	}
+	if f.Mode()&os.ModeSymlink != 0 {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		target, err := io.ReadAll(io.LimitReader(rc, 4096))
+		rc.Close()
+		if err != nil {
+			return err
+		}
+		return x.symlink(destPath, string(target))
+	}
 	if _, err := x.prepare(destPath); err != nil {
 		return err
 	}
@@ -263,18 +290,7 @@ func (x *extractor) extractTarEntry(hdr *tar.Header, r io.Reader) error {
 		return x.mkdir(destPath)
 
 	case tar.TypeSymlink:
-		if isAbsLinkname(hdr.Linkname) {
-			return fmt.Errorf("symlink target unsafe: absolute target %q", hdr.Linkname)
-		}
-		realParent, err := x.prepare(destPath)
-		if err != nil {
-			return err
-		}
-		resolvedTarget, err := x.resolve(realParent, hdr.Linkname, 0)
-		if err != nil {
-			return fmt.Errorf("symlink target unsafe: %w", err)
-		}
-		return makeSymlink(hdr.Linkname, destPath, resolvedTarget)
+		return x.symlink(destPath, hdr.Linkname)
 
 	case tar.TypeLink:
 		if isAbsLinkname(hdr.Linkname) {

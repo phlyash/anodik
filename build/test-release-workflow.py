@@ -36,17 +36,36 @@ def assert_active_line(test_case, text, line):
     test_case.assertRegex(text, rf"(?m)^{re.escape(line)}$")
 
 
+TAG_GATE = "    if: github.event_name == 'push' && github.ref_type == 'tag'"
+TAG_VERSION_ENV = (
+    "          ANODIK_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '' }}"
+)
+
+
+def run_scripts(workflow):
+    """Bodies of every run: step, single-line or block."""
+    scripts = []
+    lines = workflow.splitlines()
+    for index, line in enumerate(lines):
+        match = re.match(r"^( *)(?:- )?run: ?(.*)$", line)
+        if match is None:
+            continue
+        indent = len(match.group(1))
+        body = [match.group(2)]
+        for following in lines[index + 1:]:
+            if following.strip() and len(following) - len(following.lstrip()) <= indent:
+                break
+            body.append(following)
+        scripts.append("\n".join(body))
+    return scripts
+
+
 def assert_workflow_contract(test_case, workflow):
-    assert_active_line(test_case, workflow, "  workflow_dispatch:")
+    test_case.assertNotIn("workflow_dispatch", workflow)
     test_case.assertRegex(
         workflow,
-        r"(?m)^      release_tag:\n"
-        r"^        description: Git tag used for the published GitHub Release\n"
-        r"^        required: true\n"
-        r"^        type: string$",
-    )
-    test_case.assertRegex(
-        workflow, r"(?m)^  push:\n^    branches:\n^      - master$"
+        r"(?m)^  push:\n^    branches:\n^      - master\n^    tags:\n"
+        r"^      - '\[0-9\]\*'\n^      - 'v\[0-9\]\*'$",
     )
     test_case.assertRegex(
         workflow, r"(?m)^  pull_request:\n^    branches:\n^      - master$"
@@ -69,17 +88,20 @@ def assert_workflow_contract(test_case, workflow):
         "bash build/package-release.sh dist/release",
         "bash build/verify-release-files.sh dist/release",
         "dist/smoke/bin/anodik help",
+        "actual=$(dist/smoke/bin/anodik version)",
     ):
         test_case.assertIn(required, build)
+    # Package and smoke-test steps both see the tag as the version.
+    test_case.assertEqual(
+        len(re.findall(rf"(?m)^{re.escape(TAG_VERSION_ENV)}$", build)), 2
+    )
     test_case.assertEqual(build.count("uses: actions/upload-artifact@v7"), 6)
     for archive in ARCHIVES:
         test_case.assertIn("name: " + archive, build)
         test_case.assertIn("path: dist/release/" + archive, build)
 
     release = job_block(workflow, "release")
-    assert_active_line(
-        test_case, release, "    if: github.event_name == 'workflow_dispatch'"
-    )
+    assert_active_line(test_case, release, TAG_GATE)
     assert_active_line(test_case, release, "    needs: build")
     assert_active_line(test_case, release, "      contents: write")
     test_case.assertIn("uses: actions/download-artifact@v8", release)
@@ -91,12 +113,12 @@ def assert_workflow_contract(test_case, workflow):
     test_case.assertIn('--tag "$RELEASE_TAG"', release)
     test_case.assertIn("--output release-check", release)
     test_case.assertIn('gh release create "$RELEASE_TAG" release-assets/*', release)
-    test_case.assertIn("RELEASE_TAG: ${{ inputs.release_tag }}", release)
+    test_case.assertIn("--verify-tag", release)
+    test_case.assertEqual(release.count("RELEASE_TAG: ${{ github.ref_name }}"), 2)
 
     deploy = job_block(workflow, "deploy-beget")
-    assert_active_line(
-        test_case, deploy, "    if: github.event_name == 'workflow_dispatch'"
-    )
+    assert_active_line(test_case, deploy, TAG_GATE)
+    test_case.assertIn("RELEASE_TAG: ${{ github.ref_name }}", deploy)
     assert_active_line(test_case, deploy, "    needs: release")
     test_case.assertIn("uses: actions/download-artifact@v8", deploy)
     test_case.assertIn("bash build/verify-release-files.sh release-assets", deploy)
@@ -118,6 +140,10 @@ def assert_workflow_contract(test_case, workflow):
 
     test_case.assertEqual(workflow.count("contents: write"), 1)
     test_case.assertNotIn("ssh-keyscan", workflow)
+    # Tag names may contain shell metacharacters; expressions only reach
+    # scripts through env:, never inlined into a run: body.
+    for script in run_scripts(workflow):
+        test_case.assertNotIn("${{", script)
 
 
 class ReleaseWorkflowTests(unittest.TestCase):
@@ -129,15 +155,25 @@ class ReleaseWorkflowTests(unittest.TestCase):
         """Missing build gates or manual-only dependencies can publish unsafe input."""
         assert_workflow_contract(self, self.workflow())
 
-    def test_commented_manual_gate_is_not_accepted(self):
+    def test_commented_tag_gate_is_not_accepted(self):
         """A commented deploy guard must not count as a publication gate."""
         workflow = self.workflow().replace(
-            "    if: github.event_name == 'workflow_dispatch'\n"
-            "    needs: release\n",
-            "    # if: github.event_name == 'workflow_dispatch'\n"
-            "    needs: release\n",
+            TAG_GATE + "\n    needs: release\n",
+            "    # " + TAG_GATE.strip() + "\n    needs: release\n",
             1,
         )
+        self.assertNotEqual(workflow, self.workflow())
+        with self.assertRaises(AssertionError):
+            assert_workflow_contract(self, workflow)
+
+    def test_tag_inlined_into_a_script_is_not_accepted(self):
+        """${{ github.ref_name }} inside run: would execute shell code from a tag name."""
+        workflow = self.workflow().replace(
+            'gh release create "$RELEASE_TAG" release-assets/*',
+            'gh release create "${{ github.ref_name }}" release-assets/*',
+            1,
+        )
+        self.assertNotEqual(workflow, self.workflow())
         with self.assertRaises(AssertionError):
             assert_workflow_contract(self, workflow)
 

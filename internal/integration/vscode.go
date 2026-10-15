@@ -1,6 +1,14 @@
 package integration
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
+
+func jsonString(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
 
 const vscodeTasks = `
 {
@@ -9,7 +17,8 @@ const vscodeTasks = `
         {
             "label": "Build debug",
             "type": "shell",
-            "command": "%[1]s build",
+            "command": %[1]s,
+            "args": ["build"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -24,7 +33,8 @@ const vscodeTasks = `
         {
             "label": "Build release",
             "type": "shell",
-            "command": "%[1]s build --release",
+            "command": %[1]s,
+            "args": ["build", "--release"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -39,7 +49,8 @@ const vscodeTasks = `
         {
             "label": "Clean",
             "type": "shell",
-            "command": "%[1]s clean",
+            "command": %[1]s,
+            "args": ["clean"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -55,7 +66,8 @@ const vscodeTasks = `
         {
             "label": "Run",
             "type": "shell",
-            "command": "%[1]s run",
+            "command": %[1]s,
+            "args": ["run"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -70,7 +82,8 @@ const vscodeTasks = `
         {
             "label": "Start openocd",
             "type": "shell",
-            "command": "%[1]s ocd",
+            "command": %[1]s,
+            "args": ["ocd"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -86,7 +99,8 @@ const vscodeTasks = `
         {
             "label": "Start openocd in background",
             "type": "shell",
-            "command": "%[1]s ocd --bg",
+            "command": %[1]s,
+            "args": ["ocd", "--bg"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -101,7 +115,8 @@ const vscodeTasks = `
         {
             "label": "Stop background openocd",
             "type": "shell",
-            "command": "%[1]s ocd --stop",
+            "command": %[1]s,
+            "args": ["ocd", "--stop"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -116,7 +131,8 @@ const vscodeTasks = `
         {
             "label": "Flash",
             "type": "shell",
-            "command": "%[1]s flash",
+            "command": %[1]s,
+            "args": ["flash"],
             "options": {
                 "cwd": "${workspaceFolder}"
             },
@@ -159,13 +175,13 @@ const vscodeDebug = `
 
 const vscodeSettings = `
 {
-    "clangd.path": "%s",
-    "clang-format.executable": "%s",
+    "clangd.path": %s,
+    "clang-format.executable": %s,
 }
 `
 
-func VscodeTasks(anodikPath string) string {
-	return fmt.Sprintf(vscodeTasks, anodikPath)
+func VscodeTasks(anodikCommand string) string {
+	return fmt.Sprintf(vscodeTasks, jsonString(anodikCommand))
 }
 
 func VscodeLaunch(projectName string, gdbPath string, projectDir string) string {
@@ -173,5 +189,5 @@ func VscodeLaunch(projectName string, gdbPath string, projectDir string) string 
 }
 
 func VscodeSettings(clangd string, clangFormat string) string {
-	return fmt.Sprintf(vscodeSettings, clangd, clangFormat)
+	return fmt.Sprintf(vscodeSettings, jsonString(clangd), jsonString(clangFormat))
 }

@@ -5,9 +5,11 @@ import (
 	"anodik/internal/integration"
 	"anodik/internal/process"
 	"anodik/internal/toolchain"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -59,13 +61,13 @@ pyrightconfig.json
 local.env
 .config*
 .DS_Store
-CMakePresets.json
+CMakeUserPresets.json
 `
 
 const CMAKE_PRESETS_TEMPLATE = `{
     "version": 6,
     "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
-    "include": ["%s"]
+    "include": [%s]
 }
 `
 
@@ -100,10 +102,10 @@ func (j *NewJob) Run(s *env.Settings, _ *process.Manager) error {
 	}
 
 	files := map[string]string{
-		"CMakeLists.txt":    fmt.Sprintf(CMAKE_LISTS_TEMPLATE, name),
-		"CMakePresets.json": fmt.Sprintf(CMAKE_PRESETS_TEMPLATE, filepath.Join(s.SDKRoot, "CMakePresets.json")),
-		"src/main.c":        MAIN_C_TEMPLATE,
-		".gitignore":        GITIGNORE_TEMPLATE,
+		"CMakeLists.txt": fmt.Sprintf(CMAKE_LISTS_TEMPLATE, name),
+		"CMakeUserPresets.json": fmt.Sprintf(CMAKE_PRESETS_TEMPLATE, jsonPath(filepath.Join(s.SDKRoot, "CMakePresets.json"))),
+		"src/main.c":            MAIN_C_TEMPLATE,
+		".gitignore":            GITIGNORE_TEMPLATE,
 	}
 
 	for relPath, content := range files {
@@ -164,6 +166,11 @@ func resolveNewProjectDir(workingDir, path string) (string, error) {
 	return filepath.Join(workingDir, path), nil
 }
 
+func jsonPath(p string) string {
+	b, _ := json.Marshal(filepath.ToSlash(p))
+	return string(b)
+}
+
 func copySDKTemplate(sdkRoot, targetDir, name string) {
 	data, err := os.ReadFile(filepath.Join(sdkRoot, name))
 	if err != nil {
@@ -172,15 +179,25 @@ func copySDKTemplate(sdkRoot, targetDir, name string) {
 	_ = os.WriteFile(filepath.Join(targetDir, name), data, 0644)
 }
 
-func anodikPath() string {
-	return filepath.ToSlash(toolchain.Anodik())
+func anodikCommand() string {
+	self := toolchain.Anodik()
+	if onPath, err := exec.LookPath(toolchain.BinName("anodik")); err == nil && sameFile(onPath, self) {
+		return "anodik"
+	}
+	return filepath.ToSlash(self)
+}
+
+func sameFile(a, b string) bool {
+	ai, errA := os.Stat(a)
+	bi, errB := os.Stat(b)
+	return errA == nil && errB == nil && os.SameFile(ai, bi)
 }
 
 func generateZedDirectory(s *env.Settings, targetDir string) error {
 	if err := os.MkdirAll(filepath.Join(targetDir, ".zed"), 0755); err != nil {
 		return err
 	}
-	tasksErr := os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(anodikPath())), 0644)
+	tasksErr := os.WriteFile(filepath.Join(targetDir, ".zed", "tasks.json"), []byte(integration.ZedTasks(anodikCommand())), 0644)
 	settingsErr := os.WriteFile(filepath.Join(targetDir, ".zed", "settings.json"), []byte(integration.ZedSettings(filepath.ToSlash(toolchain.Clangd(s)), filepath.ToSlash(toolchain.ClangFormat(s)))), 0644)
 	return errors.Join(tasksErr, settingsErr)
 }
@@ -190,7 +207,7 @@ func generateVscodeDirecotry(s *env.Settings, targetDir string, projectName stri
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	taskErr := os.WriteFile(filepath.Join(dir, "tasks.json"), []byte(integration.VscodeTasks(anodikPath())), 0644)
+	taskErr := os.WriteFile(filepath.Join(dir, "tasks.json"), []byte(integration.VscodeTasks(anodikCommand())), 0644)
 	var launchErr error = nil
 	_ = projectName
 	/// todo: not stable yet
