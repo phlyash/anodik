@@ -78,10 +78,14 @@ func (j *UninstallJob) runUninstallEverything(s *env.Settings) error {
 		return nil
 	}
 
-	if packetmanager.Ask(
+	answer, err := packetmanager.Ask(
 		"Do you want to remove directories listed above?",
 		packetmanager.Yes|packetmanager.No,
-	) == packetmanager.No {
+	)
+	if err != nil {
+		return err
+	}
+	if answer == packetmanager.No {
 		return nil
 	}
 

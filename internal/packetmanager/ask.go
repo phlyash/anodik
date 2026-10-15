@@ -3,6 +3,7 @@ package packetmanager
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -16,7 +17,11 @@ const (
 	Invalid = 0
 )
 
-func Ask(question string, options QuestionOption) QuestionOption {
+func Ask(question string, options QuestionOption) (QuestionOption, error) {
+	return askFrom(os.Stdin, os.Stdout, question, options)
+}
+
+func askFrom(in io.Reader, out io.Writer, question string, options QuestionOption) (QuestionOption, error) {
 	var parts []string
 	if options&Yes == Yes {
 		parts = append(parts, "Yes(y)")
@@ -29,29 +34,33 @@ func Ask(question string, options QuestionOption) QuestionOption {
 	}
 
 	optStr := fmt.Sprintf("[%s]", strings.Join(parts, "/"))
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(in)
 
 	for {
-		fmt.Printf("%s %s ", question, optStr)
+		fmt.Fprintf(out, "%s %s ", question, optStr)
 
-		input, _ := reader.ReadString('\n')
+		input, readErr := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
 
 		switch input {
 		case "y":
 			if options&Yes == Yes {
-				return Yes
+				return Yes, nil
 			}
 		case "n":
 			if options&No == No {
-				return No
+				return No, nil
 			}
 		case "s":
 			if options&Skip == Skip {
-				return Skip
+				return Skip, nil
 			}
 		}
 
-		fmt.Println("Invalid option, please choose from the available options.")
+		if readErr != nil {
+			fmt.Fprintln(out)
+			return Invalid, fmt.Errorf("no answer to %q: stdin is closed (run the command in a terminal)", question)
+		}
+		fmt.Fprintln(out, "Invalid option, please choose from the available options.")
 	}
 }

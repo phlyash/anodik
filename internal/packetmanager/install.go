@@ -26,7 +26,7 @@ func Install(packet *Packet, target_path string) error {
 
 	fmt.Println("extracting into", target_path)
 
-	if err := Extract(tmpArchive, target_path, packet.Archiv); err != nil {
+	if err := extractInto(tmpArchive, target_path, packet.Archiv); err != nil {
 		return fmt.Errorf("extract: %w", err)
 	}
 
@@ -81,10 +81,14 @@ func Uninstall(packet Packet, installDir string) error {
 		return fmt.Errorf("Packet %s is not installed in %s", packet.Type, installDir)
 	}
 
-	if Ask(
+	answer, err := Ask(
 		fmt.Sprintf("Do you want to delete directory %s and all its contents", packetDir),
 		Yes|No,
-	) == No {
+	)
+	if err != nil {
+		return err
+	}
+	if answer == No {
 		return nil
 	}
 
