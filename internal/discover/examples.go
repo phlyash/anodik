@@ -15,6 +15,11 @@ func ExamplesDir(sdkRoot string) string {
 }
 
 func ExampleDir(sdkRoot, workingDir, exampleName string) string {
+	current := currentProjectDir(sdkRoot, workingDir)
+	if current != "" && filepath.Base(current) == path.Base(exampleName) {
+		return current
+	}
+
 	if sdkRoot != "" && exampleName != "" {
 		candidate := filepath.Join(ExamplesDir(sdkRoot), exampleName)
 		if isDir(candidate) {
@@ -24,6 +29,9 @@ func ExampleDir(sdkRoot, workingDir, exampleName string) string {
 		}
 	}
 
+	if current != "" {
+		return current
+	}
 	return workingDir
 }
 
@@ -109,11 +117,23 @@ func DiscoverExamples(dir string) []string {
 }
 
 func DetectCurrentExample(sdkRoot, workingDir string) string {
+	if dir := currentProjectDir(sdkRoot, workingDir); dir != "" {
+		return filepath.Base(dir)
+	}
+	return ""
+}
+
+// currentProjectDir is the executable project containing workingDir (the
+// directory itself or its nearest ancestor, not going above sdkRoot), or "".
+func currentProjectDir(sdkRoot, workingDir string) string {
+	if workingDir == "" {
+		return ""
+	}
 	dir := workingDir
 
 	for {
 		if ok, _ := IsExecutableProject(dir); ok {
-			return filepath.Base(dir)
+			return dir
 		}
 
 		if dir == sdkRoot {

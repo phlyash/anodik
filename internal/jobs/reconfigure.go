@@ -23,7 +23,7 @@ func (j *ReconfigureJob) Run(s *env.Settings, manager *process.Manager) error {
 	buildDir := filepath.Join(j.ProjectDir, "build")
 	projectDir := discover.ProjectDir(s.SDKRoot, s.WorkingDir, j.Example)
 
-	if err := cmakebuild.Clean(buildDir, projectDir); err != nil {
+	if _, err := cmakebuild.Clean(buildDir, projectDir); err != nil {
 		return err
 	}
 

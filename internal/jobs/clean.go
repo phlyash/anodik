@@ -5,6 +5,7 @@ import (
 	"anodik/internal/discover"
 	"anodik/internal/env"
 	"anodik/internal/process"
+	"fmt"
 	"path/filepath"
 )
 
@@ -24,7 +25,20 @@ func (j *CleanJob) Run(s *env.Settings, _ *process.Manager) error {
 
 	buildDir := filepath.Join(j.ProjectDir, "build")
 	projectDir := discover.ProjectDir(s.SDKRoot, s.WorkingDir, j.Example)
-	return cmakebuild.Clean(buildDir, projectDir)
+	return cleanAndReport(buildDir, projectDir)
+}
+
+func cleanAndReport(buildDir, projectDir string) error {
+	removed, err := cmakebuild.Clean(buildDir, projectDir)
+	if err != nil {
+		return err
+	}
+	if removed {
+		fmt.Printf("Removed %s\n", buildDir)
+	} else {
+		fmt.Printf("Nothing to clean: %s does not exist\n", buildDir)
+	}
+	return nil
 }
 
 func (j *CleanJob) Finish(*env.Settings, *process.Manager) error {
@@ -43,7 +57,7 @@ func (j *CleanJob) Describe() HelpInfo {
 func cleanAll(s *env.Settings) error {
 	for _, name := range discover.DiscoverExamples(s.WorkingDir) {
 		srcDir := filepath.Join(s.WorkingDir, name)
-		if err := cmakebuild.Clean(filepath.Join(srcDir, "build"), srcDir); err != nil {
+		if err := cleanAndReport(filepath.Join(srcDir, "build"), srcDir); err != nil {
 			return err
 		}
 	}
@@ -51,10 +65,10 @@ func cleanAll(s *env.Settings) error {
 	examplesDir := discover.ExamplesDir(s.SDKRoot)
 	for _, name := range discover.DiscoverExamples(examplesDir) {
 		srcDir := filepath.Join(examplesDir, name)
-		if err := cmakebuild.Clean(filepath.Join(srcDir, "build"), s.SDKRoot); err != nil {
+		if err := cleanAndReport(filepath.Join(srcDir, "build"), s.SDKRoot); err != nil {
 			return err
 		}
 	}
 
-	return cmakebuild.Clean(filepath.Join(s.SDKRoot, "build"), s.SDKRoot)
+	return cleanAndReport(filepath.Join(s.SDKRoot, "build"), s.SDKRoot)
 }

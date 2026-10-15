@@ -45,17 +45,19 @@ func Build(s *env.Settings, manager *process.Manager, srcDir, buildDir, projectD
 	return LinkCompileCommands(s, buildDir, projectDir)
 }
 
-func Clean(buildDir, projectDir string) error {
+func Clean(buildDir, projectDir string) (removed bool, err error) {
+	_, statErr := os.Lstat(buildDir)
+	removed = statErr == nil
 	if err := os.RemoveAll(buildDir); err != nil {
-		return fmt.Errorf("remove build dir: %w", err)
+		return false, fmt.Errorf("remove build dir: %w", err)
 	}
 
 	linked := compileCommandsLinkPath(projectDir)
 	if err := os.Remove(linked); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remove linked compile_commands.json: %w", err)
+		return removed, fmt.Errorf("remove linked compile_commands.json: %w", err)
 	}
 
-	return nil
+	return removed, nil
 }
 
 func isWindows() bool {
