@@ -5,6 +5,7 @@ import (
 	"anodik/internal/ocd"
 	"anodik/internal/process"
 	"fmt"
+	"strings"
 )
 
 type SrvEraseJob struct {
@@ -39,10 +40,24 @@ func (j *SrvEraseJob) Run(s *env.Settings, manager *process.Manager) error {
 	fmt.Println("Erasing flash...")
 	ocd.PrintInfo(cfg, &ports)
 
-	tail := []string{"-c", "init", "-c", "reset halt", "-c", "flash erase_sector 0 0 last", "-c", "reset", "-c", "exit"}
-	args := ocd.Command(s, s.SDKRoot, cfg, ports, tail)
+	driverTail := []string{"-c", "init", "-c", "halt", "-c", cfg.SoC + " srv_erase", "-c", "exit"}
+	driverArgs := ocd.Command(s, s.SDKRoot, cfg, ports, driverTail)
 
-	return manager.RunForeground(args[0], args[1:])
+	output, err := manager.RunForegroundCaptured(driverArgs[0], driverArgs[1:])
+	if err == nil && !ocdCommandFailed(output) {
+		return nil
+	}
+
+	fmt.Printf("\n'%s srv_erase' did not run, falling back to sector erase...\n", cfg.SoC)
+
+	fallbackTail := []string{"-c", "init", "-c", "reset halt", "-c", "flash erase_sector 0 0 last", "-c", "reset", "-c", "exit"}
+	fallbackArgs := ocd.Command(s, s.SDKRoot, cfg, ports, fallbackTail)
+
+	return manager.RunForeground(fallbackArgs[0], fallbackArgs[1:])
+}
+
+func ocdCommandFailed(output string) bool {
+	return strings.Contains(output, "invalid command name") || strings.Contains(output, "ERROR:")
 }
 
 func (j *SrvEraseJob) Finish(*env.Settings, *process.Manager) error {

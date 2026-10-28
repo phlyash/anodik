@@ -2,8 +2,10 @@ package process
 
 import (
 	"anodik/internal/platform"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,6 +40,22 @@ func (m *Manager) RunForeground(name string, args []string) error {
 	cmd.Stderr = os.Stderr
 
 	return platform.RunForeground(cmd)
+}
+
+// RunForegroundCaptured behaves like RunForeground, but also returns everything
+// the process wrote to stdout and stderr so the caller can inspect it.
+func (m *Manager) RunForegroundCaptured(name string, args []string) (string, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = m.WorkingDir
+	cmd.Stdin = os.Stdin
+
+	var captured bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stdout, &captured)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &captured)
+
+	err := platform.RunForeground(cmd)
+
+	return captured.String(), err
 }
 
 func (m *Manager) RunDetachedLogged(session, name string, args []string, logPath, metadata string) (pid int, alive bool, err error) {
